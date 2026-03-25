@@ -1,16 +1,46 @@
 "use client";
-import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
 
-export default function Page() {
+import { useRouter } from "next/navigation";
+import { useEffect, useRef } from "react";
+
+const dashboards = [
+  {
+    role: "Field Worker",
+    icon: "◎",
+    color: "#86efac",
+    bg: "rgba(134,239,172,0.07)",
+    border: "rgba(134,239,172,0.25)",
+    desc: "Submit community reports, track issue status, and document ground-level needs with photos and field data.",
+    tags: ["Submit Reports", "Photo Upload", "Track Status"],
+    path: "/field-worker",
+  },
+  {
+    role: "Admin",
+    icon: "⬡",
+    color: "#67e8f9",
+    bg: "rgba(103,232,249,0.07)",
+    border: "rgba(103,232,249,0.25)",
+    desc: "View live issue map, analyze priority scores, and assign the right volunteers to the most urgent needs.",
+    tags: ["Live Map", "AI Priority", "Assign Tasks"],
+    path: "/admin",
+  },
+  {
+    role: "Volunteer",
+    icon: "△",
+    color: "#fbbf24",
+    bg: "rgba(251,191,36,0.07)",
+    border: "rgba(251,191,36,0.25)",
+    desc: "See your assigned tasks, get directions to affected areas, and mark completed missions in real time.",
+    tags: ["My Tasks", "Directions", "Mark Done"],
+    path: "/volunteer",
+  },
+];
+
+export default function HomePage() {
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
   const canvasRef = useRef(null);
 
   useEffect(() => {
-    setMounted(true);
-
-    // Animated dot grid background
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -39,14 +69,12 @@ export default function Page() {
         d.y += d.vy;
         if (d.x < 0 || d.x > canvas.width) d.vx *= -1;
         if (d.y < 0 || d.y > canvas.height) d.vy *= -1;
-
         ctx.beginPath();
         ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
         ctx.fillStyle = `rgba(134, 239, 172, ${d.opacity})`;
         ctx.fill();
       });
 
-      // Draw faint connecting lines
       for (let i = 0; i < dots.length; i++) {
         for (let j = i + 1; j < dots.length; j++) {
           const dx = dots[i].x - dots[j].x;
@@ -62,7 +90,6 @@ export default function Page() {
           }
         }
       }
-
       animId = requestAnimationFrame(draw);
     };
     draw();
@@ -73,39 +100,6 @@ export default function Page() {
     };
   }, []);
 
-  const dashboards = [
-    {
-      role: "Field Worker",
-      icon: "◎",
-      color: "#86efac",
-      bg: "rgba(134,239,172,0.07)",
-      border: "rgba(134,239,172,0.25)",
-      desc: "Submit community reports, track issue status, and document ground-level needs with photos and field data.",
-      tags: ["Submit Reports", "Photo Upload", "Track Status"],
-      path: "/field-worker",
-    },
-    {
-      role: "Admin",
-      icon: "⬡",
-      color: "#67e8f9",
-      bg: "rgba(103,232,249,0.07)",
-      border: "rgba(103,232,249,0.25)",
-      desc: "View live issue map, analyze priority scores, and assign the right volunteers to the most urgent needs.",
-      tags: ["Live Map", "AI Priority", "Assign Tasks"],
-      path: "/admin",
-    },
-    {
-      role: "Volunteer",
-      icon: "△",
-      color: "#fbbf24",
-      bg: "rgba(251,191,36,0.07)",
-      border: "rgba(251,191,36,0.25)",
-      desc: "See your assigned tasks, get directions to affected areas, and mark completed missions in real time.",
-      tags: ["My Tasks", "Directions", "Mark Done"],
-      path: "/volunteer",
-    },
-  ];
-
   return (
     <>
       <style>{`
@@ -113,14 +107,14 @@ export default function Page() {
 
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-        body {
+        html, body {
           background: #080e0a;
           color: #e8f5e9;
           font-family: 'DM Sans', sans-serif;
           overflow-x: hidden;
         }
 
-        .page {
+        .sra-page {
           min-height: 100vh;
           position: relative;
           display: flex;
@@ -128,23 +122,14 @@ export default function Page() {
           align-items: center;
         }
 
-        canvas {
+        .sra-canvas {
           position: fixed;
           inset: 0;
           pointer-events: none;
           z-index: 0;
         }
 
-        .noise {
-          position: fixed;
-          inset: 0;
-          background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
-          pointer-events: none;
-          z-index: 1;
-          opacity: 0.4;
-        }
-
-        .content {
+        .sra-content {
           position: relative;
           z-index: 2;
           width: 100%;
@@ -152,17 +137,16 @@ export default function Page() {
           padding: 0 24px;
         }
 
-        /* NAV */
-        nav {
+        .sra-nav {
           display: flex;
           justify-content: space-between;
           align-items: center;
           padding: 28px 0 0;
           opacity: 0;
-          animation: fadeUp 0.6s ease 0.1s forwards;
+          animation: sriFadeUp 0.6s ease 0.1s forwards;
         }
 
-        .logo {
+        .sra-logo {
           font-family: 'Syne', sans-serif;
           font-weight: 800;
           font-size: 1.1rem;
@@ -170,12 +154,9 @@ export default function Page() {
           color: #86efac;
         }
 
-        .logo span {
-          color: #e8f5e9;
-          opacity: 0.5;
-        }
+        .sra-logo span { color: #e8f5e9; opacity: 0.4; }
 
-        .badge {
+        .sra-badge {
           font-size: 0.7rem;
           font-weight: 500;
           padding: 5px 12px;
@@ -186,309 +167,271 @@ export default function Page() {
           text-transform: uppercase;
         }
 
-        /* HERO */
-        .hero {
-          padding: 90px 0 60px;
+        .sra-hero {
+          padding: 80px 0 50px;
           text-align: center;
         }
 
-        .eyebrow {
+        .sra-eyebrow {
           font-size: 0.72rem;
           letter-spacing: 0.2em;
           text-transform: uppercase;
           color: #86efac;
-          opacity: 0.7;
-          margin-bottom: 24px;
           opacity: 0;
-          animation: fadeUp 0.6s ease 0.2s forwards;
+          margin-bottom: 20px;
+          animation: sriFadeUp 0.6s ease 0.2s forwards;
         }
 
-        h1 {
+        .sra-h1 {
+          font-family: 'Syne', sans-serif;
+          font-weight: 600;
+          font-size: clamp(1.4rem, 3vw, 2.2rem);
+          line-height: 1.2;
+          letter-spacing: -0.02em;
+          color: rgba(240,253,244,0.55);
+          opacity: 0;
+          animation: sriFadeUp 0.7s ease 0.3s forwards;
+          margin-bottom: 8px;
+        }
+
+        .sra-brand {
           font-family: 'Syne', sans-serif;
           font-weight: 800;
-          font-size: clamp(2.8rem, 6vw, 5rem);
-          line-height: 1.05;
-          letter-spacing: -0.03em;
-          color: #f0fdf4;
+          font-size: clamp(2.4rem, 6vw, 5rem);
+          line-height: 1;
+          letter-spacing: -0.04em;
+          background: linear-gradient(135deg, #86efac 0%, #67e8f9 60%, #86efac 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
           opacity: 0;
-          animation: fadeUp 0.7s ease 0.3s forwards;
+          animation: sriFadeUp 0.8s ease 0.4s forwards;
+          margin-bottom: 28px;
         }
 
-        h1 .accent {
-          color: #86efac;
-          position: relative;
-          display: inline-block;
-        }
-
-        h1 .accent::after {
-          content: '';
-          position: absolute;
-          bottom: 4px;
-          left: 0;
-          right: 0;
-          height: 3px;
-          background: linear-gradient(90deg, #86efac, transparent);
-          border-radius: 2px;
-        }
-
-        .subtitle {
-          margin: 24px auto 0;
-          max-width: 560px;
-          font-size: 1rem;
+        .sra-subtitle {
+          margin: 0 auto;
+          max-width: 520px;
+          font-size: 0.95rem;
           line-height: 1.7;
-          color: rgba(232,245,233,0.55);
+          color: rgba(232,245,233,0.45);
           font-weight: 300;
           opacity: 0;
-          animation: fadeUp 0.7s ease 0.4s forwards;
+          animation: sriFadeUp 0.7s ease 0.5s forwards;
         }
 
-        .hero-meta {
+        .sra-meta {
           display: flex;
           justify-content: center;
           gap: 32px;
-          margin-top: 48px;
+          margin-top: 44px;
           opacity: 0;
-          animation: fadeUp 0.7s ease 0.5s forwards;
+          animation: sriFadeUp 0.7s ease 0.6s forwards;
         }
 
-        .meta-item {
-          text-align: center;
-        }
+        .sra-meta-item { text-align: center; }
 
-        .meta-num {
+        .sra-meta-num {
           font-family: 'Syne', sans-serif;
-          font-size: 1.6rem;
+          font-size: 1.5rem;
           font-weight: 700;
           color: #86efac;
         }
 
-        .meta-label {
-          font-size: 0.72rem;
-          color: rgba(232,245,233,0.4);
+        .sra-meta-label {
+          font-size: 0.7rem;
+          color: rgba(232,245,233,0.35);
           text-transform: uppercase;
           letter-spacing: 0.1em;
           margin-top: 2px;
         }
 
-        .divider {
+        .sra-divider {
           width: 1px;
           background: rgba(134,239,172,0.15);
           align-self: stretch;
         }
 
-        /* CARDS */
-        .section-label {
+        .sra-section-label {
           font-size: 0.7rem;
           letter-spacing: 0.18em;
           text-transform: uppercase;
-          color: rgba(232,245,233,0.3);
-          margin-bottom: 32px;
+          color: rgba(232,245,233,0.25);
+          margin-bottom: 28px;
           opacity: 0;
-          animation: fadeUp 0.6s ease 0.6s forwards;
+          animation: sriFadeUp 0.6s ease 0.7s forwards;
         }
 
-        .cards {
+        .sra-cards {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
           gap: 16px;
           padding-bottom: 80px;
           opacity: 0;
-          animation: fadeUp 0.7s ease 0.7s forwards;
+          animation: sriFadeUp 0.7s ease 0.8s forwards;
         }
 
         @media (max-width: 768px) {
-          .cards { grid-template-columns: 1fr; }
-          h1 { font-size: 2.4rem; }
-          .hero-meta { gap: 20px; }
+          .sra-cards { grid-template-columns: 1fr; }
         }
 
-        .card {
-          background: rgba(255,255,255,0.02);
-          border: 1px solid rgba(255,255,255,0.07);
+        .sra-card {
           border-radius: 16px;
-          padding: 32px 28px;
+          padding: 32px 26px;
           cursor: pointer;
           position: relative;
           overflow: hidden;
-          transition: transform 0.25s ease, border-color 0.25s ease, background 0.25s ease;
+          transition: transform 0.25s ease;
         }
 
-        .card::before {
-          content: '';
-          position: absolute;
-          top: 0; left: 0; right: 0;
-          height: 1px;
-          background: linear-gradient(90deg, transparent, var(--card-color), transparent);
-          opacity: 0;
-          transition: opacity 0.3s ease;
-        }
+        .sra-card:hover { transform: translateY(-5px); }
 
-        .card:hover {
-          transform: translateY(-4px);
-          border-color: var(--card-border);
-          background: var(--card-bg);
-        }
-
-        .card:hover::before { opacity: 1; }
-
-        .card-icon {
-          font-size: 1.6rem;
-          color: var(--card-color);
-          margin-bottom: 20px;
+        .sra-card-icon {
+          font-size: 1.5rem;
+          margin-bottom: 18px;
           display: block;
           line-height: 1;
         }
 
-        .card-role {
+        .sra-card-role {
           font-family: 'Syne', sans-serif;
           font-weight: 700;
-          font-size: 1.2rem;
+          font-size: 1.15rem;
           color: #f0fdf4;
           margin-bottom: 10px;
           letter-spacing: -0.01em;
         }
 
-        .card-desc {
-          font-size: 0.875rem;
+        .sra-card-desc {
+          font-size: 0.855rem;
           line-height: 1.65;
-          color: rgba(232,245,233,0.45);
+          color: rgba(232,245,233,0.4);
           font-weight: 300;
-          margin-bottom: 24px;
+          margin-bottom: 22px;
         }
 
-        .tags {
+        .sra-tags {
           display: flex;
           flex-wrap: wrap;
           gap: 6px;
-          margin-bottom: 28px;
+          margin-bottom: 26px;
         }
 
-        .tag {
-          font-size: 0.68rem;
+        .sra-tag {
+          font-size: 0.66rem;
           padding: 4px 10px;
           border-radius: 100px;
-          border: 1px solid var(--card-border);
-          color: var(--card-color);
           letter-spacing: 0.05em;
           text-transform: uppercase;
           font-weight: 500;
         }
 
-        .card-btn {
+        .sra-card-btn {
           display: flex;
           align-items: center;
           gap: 8px;
-          font-size: 0.8rem;
+          font-size: 0.78rem;
           font-weight: 500;
-          color: var(--card-color);
           letter-spacing: 0.04em;
           text-transform: uppercase;
           background: none;
           border: none;
           cursor: pointer;
           padding: 0;
-          transition: gap 0.2s ease;
           font-family: 'DM Sans', sans-serif;
+          transition: gap 0.2s ease;
         }
 
-        .card:hover .card-btn { gap: 14px; }
+        .sra-card:hover .sra-card-btn { gap: 14px; }
 
-        .card-btn .arrow {
-          font-size: 1rem;
-          transition: transform 0.2s ease;
-        }
-
-        .card:hover .card-btn .arrow { transform: translateX(4px); }
-
-        /* FOOTER LINE */
-        .footer {
+        .sra-footer {
           position: relative;
           z-index: 2;
           text-align: center;
           padding: 0 0 32px;
-          font-size: 0.72rem;
-          color: rgba(232,245,233,0.2);
+          font-size: 0.7rem;
+          color: rgba(232,245,233,0.18);
           letter-spacing: 0.08em;
           opacity: 0;
-          animation: fadeUp 0.6s ease 0.9s forwards;
+          animation: sriFadeUp 0.6s ease 1s forwards;
         }
 
-        @keyframes fadeUp {
+        @keyframes sriFadeUp {
           from { opacity: 0; transform: translateY(18px); }
           to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
 
-      <canvas ref={canvasRef} />
-      <div className="noise" />
+      <canvas ref={canvasRef} className="sra-canvas" />
 
-      <div className="page">
-        <div className="content">
-          <nav>
-            <div className="logo">SRA<span>/</span>sys</div>
-            <div className="badge">🌱 Google Solution Challenge</div>
+      <div className="sra-page">
+        <div className="sra-content">
+
+          <nav className="sra-nav">
+            <div className="sra-logo">SRA<span>/</span>sys</div>
+            <div className="sra-badge">Google Solution Challenge</div>
           </nav>
 
-          <section className="hero">
-            <p className="eyebrow">Raebareli · Uttar Pradesh · India</p>
-            <h1>
-              Smart <span className="accent">Resource</span><br />
-              Allocation System
-            </h1>
-            <p className="subtitle">
+          <section className="sra-hero">
+            <p className="sra-eyebrow">Smart Resource Allocation System · Raebareli</p>
+            <h1 className="sra-h1">Empowering Communities through</h1>
+            <div className="sra-brand">Sanrakshan</div>
+            <p className="sra-subtitle">
               Connecting community needs with the right volunteers — powered by AI, grounded in local data.
             </p>
-
-            <div className="hero-meta">
-              <div className="meta-item">
-                <div className="meta-num">3</div>
-                <div className="meta-label">Dashboards</div>
+            <div className="sra-meta">
+              <div className="sra-meta-item">
+                <div className="sra-meta-num">3</div>
+                <div className="sra-meta-label">Dashboards</div>
               </div>
-              <div className="divider" />
-              <div className="meta-item">
-                <div className="meta-num">AI</div>
-                <div className="meta-label">Powered</div>
+              <div className="sra-divider" />
+              <div className="sra-meta-item">
+                <div className="sra-meta-num">AI</div>
+                <div className="sra-meta-label">Powered</div>
               </div>
-              <div className="divider" />
-              <div className="meta-item">
-                <div className="meta-num">RT</div>
-                <div className="meta-label">Real-time</div>
+              <div className="sra-divider" />
+              <div className="sra-meta-item">
+                <div className="sra-meta-num">RT</div>
+                <div className="sra-meta-label">Real-time</div>
               </div>
             </div>
           </section>
 
-          <p className="section-label">— Select your role to continue</p>
+          <p className="sra-section-label">— Select your role to continue</p>
 
-          <div className="cards">
+          <div className="sra-cards">
             {dashboards.map((d) => (
               <div
                 key={d.role}
-                className="card"
-                style={{
-                  "--card-color": d.color,
-                  "--card-bg": d.bg,
-                  "--card-border": d.border,
-                }}
+                className="sra-card"
                 onClick={() => router.push(d.path)}
+                style={{ border: `1px solid ${d.border}`, background: d.bg }}
               >
-                <span className="card-icon">{d.icon}</span>
-                <div className="card-role">{d.role}</div>
-                <div className="card-desc">{d.desc}</div>
-                <div className="tags">
+                <span className="sra-card-icon" style={{ color: d.color }}>{d.icon}</span>
+                <div className="sra-card-role">{d.role}</div>
+                <div className="sra-card-desc">{d.desc}</div>
+                <div className="sra-tags">
                   {d.tags.map((t) => (
-                    <span key={t} className="tag">{t}</span>
+                    <span
+                      key={t}
+                      className="sra-tag"
+                      style={{ border: `1px solid ${d.border}`, color: d.color }}
+                    >
+                      {t}
+                    </span>
                   ))}
                 </div>
-                <button className="card-btn">
-                  Enter Dashboard <span className="arrow">→</span>
+                <button className="sra-card-btn" style={{ color: d.color }}>
+                  Enter Dashboard <span>→</span>
                 </button>
               </div>
             ))}
           </div>
+
         </div>
 
-        <footer className="footer">
-          Built for Google Solution Challenge · SRA System · Raebareli
+        <footer className="sra-footer">
+          Built for Google Solution Challenge · Sanrakshan · Raebareli
         </footer>
       </div>
     </>
