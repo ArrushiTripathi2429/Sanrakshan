@@ -102,8 +102,9 @@ export default function HomePage() {
 
   return (
     <>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap');
+      <style>{`  
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,400;0,600;1,300&family=Outfit:wght@300;400;500&display=swap');
+      
 
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -185,7 +186,7 @@ export default function HomePage() {
         .sra-h1 {
           font-family: 'Syne', sans-serif;
           font-weight: 600;
-          font-size: clamp(1.4rem, 3vw, 2.2rem);
+          font-size: clamp(1.4rem, 3vw, 4rem);
           line-height: 1.2;
           letter-spacing: -0.02em;
           color: rgba(240,253,244,0.55);
@@ -197,7 +198,7 @@ export default function HomePage() {
         .sra-brand {
           font-family: 'Syne', sans-serif;
           font-weight: 800;
-          font-size: clamp(2.4rem, 6vw, 5rem);
+          font-size: clamp(2.4rem, 8vw, 10rem);
           line-height: 1;
           letter-spacing: -0.04em;
           background: linear-gradient(135deg, #86efac 0%, #67e8f9 60%, #86efac 100%);
@@ -376,6 +377,10 @@ export default function HomePage() {
             <p className="sra-eyebrow">Smart Resource Allocation System · Raebareli</p>
             <h1 className="sra-h1">Empowering Communities through</h1>
             <div className="sra-brand">Sanrakshan</div>
+             <div className="sra-h1">
+                "A flood-affected villager doesn't fill forms.<br />
+                They speak. Sanrakshan listens."
+              </div>
             <p className="sra-subtitle">
               Connecting community needs with the right volunteers — powered by AI, grounded in local data.
             </p>
@@ -404,7 +409,7 @@ export default function HomePage() {
               <div
                 key={d.role}
                 className="sra-card"
-                onClick={() => router.push(d.path)}
+                onClick={() => router.push(`/auth?redirect=${d.path}&role=${d.role.toLowerCase().replace(" ", "-")}`)}
                 style={{ border: `1px solid ${d.border}`, background: d.bg }}
               >
                 <span className="sra-card-icon" style={{ color: d.color }}>{d.icon}</span>
@@ -437,3 +442,4 @@ export default function HomePage() {
     </>
   );
 }
+

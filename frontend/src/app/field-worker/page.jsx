@@ -3,14 +3,14 @@
 import { useState, useRef, useEffect } from "react";
 
 const CATEGORIES = [
-  { value: "flood", label: "🌊 Flood / Water Logging" },
-  { value: "medical", label: "🏥 Medical Emergency" },
-  { value: "road", label: "🛣️ Road / Infrastructure" },
-  { value: "food", label: "🌾 Food / Ration Shortage" },
-  { value: "education", label: "📚 Education Support" },
-  { value: "electricity", label: "⚡ Electricity / Power" },
-  { value: "water", label: "💧 Drinking Water" },
-  { value: "other", label: "📋 Other" },
+  { value: "flood", label: " Flood / Water Logging" },
+  { value: "medical", label: " Medical Emergency" },
+  { value: "road", label: " Road / Infrastructure" },
+  { value: "food", label: " Food / Ration Shortage" },
+  { value: "education", label: "Education Support" },
+  { value: "electricity", label: "Electricity / Power" },
+  { value: "water", label: " Drinking Water" },
+  { value: "other", label: " Other" },
 ];
 
 const emptyForm = {
@@ -24,7 +24,7 @@ const emptyForm = {
 };
 
 export default function FieldWorkerPage() {
-  const [mode, setMode] = useState(null); // null | "voice" | "form"
+  const [mode, setMode] = useState(null); 
   const [recording, setRecording] = useState(false);
   const [recorded, setRecorded] = useState(false);
   const [processing, setProcessing] = useState(false);
