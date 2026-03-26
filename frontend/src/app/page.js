@@ -103,7 +103,6 @@ export default function HomePage() {
   return (
     <>
       <style>{`
-
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         html, body {
@@ -146,7 +145,7 @@ export default function HomePage() {
         }
 
         .sra-logo {
-          font-family: var(--font-fraunces); 
+          font-family: var(--font-fraunces);
           font-weight: 800;
           font-size: 1.1rem;
           letter-spacing: -0.02em;
@@ -166,23 +165,199 @@ export default function HomePage() {
           text-transform: uppercase;
         }
 
-        .sra-h1,
-        .sra-brand,
-        .sra-meta-num,
+        .sra-hero {
+          padding: 80px 0 50px;
+          text-align: center;
+        }
+
+        .sra-eyebrow {
+          font-size: 0.72rem;
+          letter-spacing: 0.2em;
+          text-transform: uppercase;
+          color: #86efac;
+          opacity: 0;
+          margin-bottom: 20px;
+          animation: sriFadeUp 0.6s ease 0.2s forwards;
+        }
+
+        .sra-h1 {
+          font-family: var(--font-fraunces);
+          font-weight: 600;
+          font-size: clamp(1.4rem, 3vw, 4rem);
+          line-height: 1.2;
+          letter-spacing: -0.02em;
+          color: rgba(240,253,244,0.55);
+          opacity: 0;
+          animation: sriFadeUp 0.7s ease 0.3s forwards;
+          margin-bottom: 8px;
+        }
+
+        .sra-brand {
+          font-family: var(--font-fraunces);
+          font-weight: 800;
+          font-size: clamp(2.4rem, 8vw, 10rem);
+          line-height: 1;
+          letter-spacing: -0.04em;
+          background: linear-gradient(135deg, #86efac 0%, #67e8f9 60%, #86efac 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+          opacity: 0;
+          animation: sriFadeUp 0.8s ease 0.4s forwards;
+          margin-bottom: 28px;
+        }
+
+        .sra-subtitle {
+          margin: 0 auto;
+          max-width: 520px;
+          font-size: 0.95rem;
+          line-height: 1.7;
+          color: rgba(232,245,233,0.45);
+          font-weight: 300;
+          opacity: 0;
+          animation: sriFadeUp 0.7s ease 0.5s forwards;
+        }
+
+        .sra-meta {
+          display: flex;
+          justify-content: center;
+          gap: 32px;
+          margin-top: 44px;
+          opacity: 0;
+          animation: sriFadeUp 0.7s ease 0.6s forwards;
+        }
+
+        .sra-meta-item { text-align: center; }
+
+        .sra-meta-num {
+          font-family: var(--font-fraunces);
+          font-size: 1.5rem;
+          font-weight: 700;
+          color: #86efac;
+        }
+
+        .sra-meta-label {
+          font-size: 0.7rem;
+          color: rgba(232,245,233,0.35);
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          margin-top: 2px;
+        }
+
+        .sra-divider {
+          width: 1px;
+          background: rgba(134,239,172,0.15);
+          align-self: stretch;
+        }
+
+        .sra-section-label {
+          font-size: 0.7rem;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
+          color: rgba(232,245,233,0.25);
+          margin-bottom: 28px;
+          opacity: 0;
+          animation: sriFadeUp 0.6s ease 0.7s forwards;
+        }
+
+        .sra-cards {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 16px;
+          padding-bottom: 80px;
+          opacity: 0;
+          animation: sriFadeUp 0.7s ease 0.8s forwards;
+        }
+
+        @media (max-width: 768px) {
+          .sra-cards { grid-template-columns: 1fr; }
+        }
+
+        .sra-card {
+          border-radius: 16px;
+          padding: 32px 26px;
+          cursor: pointer;
+          position: relative;
+          overflow: hidden;
+          transition: transform 0.25s ease;
+        }
+
+        .sra-card:hover { transform: translateY(-5px); }
+
+        .sra-card-icon {
+          font-size: 1.5rem;
+          margin-bottom: 18px;
+          display: block;
+          line-height: 1;
+        }
+
         .sra-card-role {
-          font-family: var(--font-fraunces); 
+          font-family: var(--font-fraunces);
+          font-weight: 700;
+          font-size: 1.15rem;
+          color: #f0fdf4;
+          margin-bottom: 10px;
+          letter-spacing: -0.01em;
+        }
+
+        .sra-card-desc {
+          font-size: 0.855rem;
+          line-height: 1.65;
+          color: rgba(232,245,233,0.4);
+          font-weight: 300;
+          margin-bottom: 22px;
+        }
+
+        .sra-tags {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+          margin-bottom: 26px;
+        }
+
+        .sra-tag {
+          font-size: 0.66rem;
+          padding: 4px 10px;
+          border-radius: 100px;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
+          font-weight: 500;
         }
 
         .sra-card-btn {
-          font-family: var(--font-outfit); 
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 0.78rem;
+          font-weight: 500;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          background: none;
+          border: none;
+          cursor: pointer;
+          padding: 0;
+          font-family: var(--font-outfit);
+          transition: gap 0.2s ease;
+        }
+
+        .sra-card:hover .sra-card-btn { gap: 14px; }
+
+        .sra-footer {
+          position: relative;
+          z-index: 2;
+          text-align: center;
+          padding: 0 0 32px;
+          font-size: 0.7rem;
+          color: rgba(232,245,233,0.18);
+          letter-spacing: 0.08em;
+          opacity: 0;
+          animation: sriFadeUp 0.6s ease 1s forwards;
         }
 
         @keyframes sriFadeUp {
           from { opacity: 0; transform: translateY(18px); }
           to { opacity: 1; transform: translateY(0); }
         }
-
-      
       `}</style>
 
       <canvas ref={canvasRef} className="sra-canvas" />
@@ -199,13 +374,14 @@ export default function HomePage() {
             <p className="sra-eyebrow">Smart Resource Allocation System · Raebareli</p>
             <h1 className="sra-h1">Empowering Communities through</h1>
             <div className="sra-brand">Sanrakshan</div>
-             <div className="sra-h1">
-                "A flood-affected villager doesn't fill forms.<br />
-                They speak. Sanrakshan listens."
-              </div>
+            <div className="sra-h1">
+              "A flood-affected villager doesn't fill forms.<br />
+              They speak. Sanrakshan listens."
+            </div>
             <p className="sra-subtitle">
               Connecting community needs with the right volunteers — powered by AI, grounded in local data.
             </p>
+
             <div className="sra-meta">
               <div className="sra-meta-item">
                 <div className="sra-meta-num">3</div>
@@ -237,6 +413,7 @@ export default function HomePage() {
                 <span className="sra-card-icon" style={{ color: d.color }}>{d.icon}</span>
                 <div className="sra-card-role">{d.role}</div>
                 <div className="sra-card-desc">{d.desc}</div>
+
                 <div className="sra-tags">
                   {d.tags.map((t) => (
                     <span
@@ -248,6 +425,7 @@ export default function HomePage() {
                     </span>
                   ))}
                 </div>
+
                 <button className="sra-card-btn" style={{ color: d.color }}>
                   Enter Dashboard <span>→</span>
                 </button>
@@ -264,4 +442,3 @@ export default function HomePage() {
     </>
   );
 }
-
