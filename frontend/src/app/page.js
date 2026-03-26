@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
+import SparklesCore from "@/components/ui/sparkles";
 
 const dashboards = [
   {
@@ -195,7 +196,7 @@ export default function HomePage() {
         .sra-brand {
           font-family: var(--font-fraunces);
           font-weight: 800;
-          font-size: clamp(2.4rem, 8vw, 10rem);
+          font-size: clamp(2.6rem, 8vw, 12rem);
           line-height: 1;
           letter-spacing: -0.04em;
           background: linear-gradient(135deg, #86efac 0%, #67e8f9 60%, #86efac 100%);
@@ -373,7 +374,35 @@ export default function HomePage() {
           <section className="sra-hero">
             <p className="sra-eyebrow">Smart Resource Allocation System · Raebareli</p>
             <h1 className="sra-h1">Empowering Communities through</h1>
-            <div className="sra-brand">Sanrakshan</div>
+            <div className="relative flex flex-col items-center justify-center">
+  
+ 
+             {/* Heading */}
+  <div className="relative inline-block">
+
+  {/* Heading */}
+  <div className="relative z-10 sra-brand">
+    Sanrakshan
+  </div>
+
+  {/* Underline */}
+  <span className="absolute left-0 -bottom-1 w-full h-[2px] bg-gradient-to-r from-gray-300 via-white to-gray-300 blur-[1px]" />
+
+</div>
+
+{/* Sparkles */}
+<div className="w-[400px] h-[80px] relative -mt-6">
+  <SparklesCore
+    background="transparent"
+    minSize={0.6}
+    maxSize={1.4}
+    particleDensity={400}
+    className="w-full h-full"
+    particleColor="#E5E7EB"
+  />
+</div>
+
+</div>
             <div className="sra-h1">
               "A flood-affected villager doesn't fill forms.<br />
               They speak. Sanrakshan listens."
