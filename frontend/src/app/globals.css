@@ -1,3 +1,19 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Font variables */
+:root {
+  --font-heading: var(--font-fraunces);
+  --font-body: var(--font-outfit);
+}
+
+/* Apply globally */
+body {
+  font-family: var(--font-body);
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+}
