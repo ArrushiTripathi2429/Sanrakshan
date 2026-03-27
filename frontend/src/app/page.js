@@ -171,6 +171,8 @@ export default function HomePage() {
           text-align: center;
         }
 
+        
+
         .sra-eyebrow {
           font-size: 0.72rem;
           letter-spacing: 0.2em;
@@ -180,6 +182,22 @@ export default function HomePage() {
           margin-bottom: 20px;
           animation: sriFadeUp 0.6s ease 0.2s forwards;
         }
+
+        .sra-eyebrowSecondary {
+  font-size: 0.90rem;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  font-weight: 600;
+  background: linear-gradient(90deg, #86efac, #67e8f9, #86efac);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 0 12px rgba(134, 239, 172, 0.35);
+  margin-bottom: 22px;
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(10px) scale(0.95);
+  animation: eyebrowReveal 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards;
+}
 
         .sra-h1 {
           font-family: var(--font-fraunces);
@@ -359,6 +377,20 @@ export default function HomePage() {
           from { opacity: 0; transform: translateY(18px); }
           to { opacity: 1; transform: translateY(0); }
         }
+
+
+        @keyframes eyebrowReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.9);
+    filter: blur(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
       `}</style>
 
       <canvas ref={canvasRef} className="sra-canvas" />
@@ -373,6 +405,7 @@ export default function HomePage() {
 
           <section className="sra-hero">
             <p className="sra-eyebrow">Smart Resource Allocation System · Raebareli</p>
+            <h1 className="sra-eyebrowSecondary">Connecting local needs with the right helping hands.</h1>
             <h1 className="sra-h1">Empowering Communities through</h1>
             <div className="relative flex flex-col items-center justify-center">
   
