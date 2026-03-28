@@ -39,7 +39,11 @@ export default function AdminPage() {
   const [toast, setToast] = useState({ show: false, icon: "", msg: "" });
 
   useEffect(() => {
-    if (mapInstanceRef.current) return;
+    if (mapInstanceRef.current) {
+    mapInstanceRef.current.remove();
+    mapInstanceRef.current = null; }
+
+    
     const init = async () => {
       const L = (await import("leaflet")).default;
       await import("leaflet/dist/leaflet.css");
