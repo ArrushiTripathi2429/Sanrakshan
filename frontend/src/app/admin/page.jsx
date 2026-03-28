@@ -143,7 +143,7 @@ export default function AdminPage() {
     setIssues((prev) =>
       prev.map((i) => i.id === selIssue.id ? { ...i, assigned: true, assignedTo: selVol.name } : i)
     );
-    showToast("🤝", `${selVol.name} deployed`);
+    showToast("", `${selVol.name} deployed`);
     setSelIssue(null);
     setSelVol(null);
   };

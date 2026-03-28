@@ -34,9 +34,13 @@ const ROLE_META = {
     bg: "rgba(251,191,36,0.06)",
     hint: "View and complete assigned tasks",
   },
+
+ 
 };
 
-// STEP: "phone" | "otp" | "name" | "done"
+
+
+
 export default function AuthPage() {
   const router = useRouter();
   const params = useSearchParams();
@@ -52,6 +56,12 @@ export default function AuthPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
+
+  const roleRedirects = {
+  "field-worker": "/fieldworker",
+  "admin": "/admin",
+  "volunteer": "/volunteer",
+};
 
   const confirmRef = useRef(null);
   const otpRefs = useRef([]);
@@ -97,57 +107,57 @@ export default function AuthPage() {
   };
 
   const handleVerifyOTP = async () => {
-    setError("");
-    const code = otp.join("");
-    if (code.length < 6) {
-      setError("Please enter the complete 6-digit OTP.");
-      return;
+  setError("");
+  const code = otp.join("");
+  if (code.length < 6) {
+    setError("Please enter the complete 6-digit OTP.");
+    return;
+  }
+  setLoading(true);
+  try {
+    const result = await confirmRef.current.confirm(code);
+    const uid = result.user.uid;
+    const userDoc = await getDoc(doc(db, "users", uid));
+    if (userDoc.exists()) {
+      // Existing user → role-based redirect
+      const existingRole = userDoc.data().role;
+      router.push(roleRedirects[existingRole] || "/");
+    } else {
+      // New user → ask name
+      setStep("name");
     }
-    setLoading(true);
-    try {
-      const result = await confirmRef.current.confirm(code);
-      const uid = result.user.uid;
-      // Check if user exists in Firestore
-      const userDoc = await getDoc(doc(db, "users", uid));
-      if (userDoc.exists()) {
-        // Existing user — redirect directly
-        router.push(redirect);
-      } else {
-        // New user — ask for name
-        setStep("name");
-      }
-    } catch (e) {
-      setError("Invalid OTP. Please try again.");
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
+  } catch (e) {
+    setError("Invalid OTP. Please try again.");
+    console.error(e);
+  } finally {
+    setLoading(false);
+  }
+};
 
-  const handleSaveName = async () => {
-    setError("");
-    if (name.trim().length < 2) {
-      setError("Please enter your full name.");
-      return;
-    }
-    setLoading(true);
-    try {
-      const uid = auth.currentUser?.uid;
-      await setDoc(doc(db, "users", uid), {
-        name: name.trim(),
-        phone: auth.currentUser?.phoneNumber,
-        role: role.replace("-", "_"),
-        createdAt: new Date(),
-      });
-      setStep("done");
-      setTimeout(() => router.push(redirect), 1200);
-    } catch (e) {
-      setError("Something went wrong. Please try again.");
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
+const handleSaveName = async () => {
+  setError("");
+  if (name.trim().length < 2) {
+    setError("Please enter your full name.");
+    return;
+  }
+  setLoading(true);
+  try {
+    const uid = auth.currentUser?.uid;
+    await setDoc(doc(db, "users", uid), {
+      name: name.trim(),
+      phone: auth.currentUser?.phoneNumber,
+      role: role,  // keep as "field-worker", "admin", "volunteer"
+      createdAt: new Date(),
+    });
+    setStep("done");
+    setTimeout(() => router.push(roleRedirects[role] || "/"), 1200);
+  } catch (e) {
+    setError("Something went wrong. Please try again.");
+    console.error(e);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleOtpChange = (index, value) => {
     if (!/^\d?$/.test(value)) return;
