@@ -1,5 +1,5 @@
 import { Fraunces, Outfit } from "next/font/google";
-import "./globals.css";
+import "./global.css";
 
 // Define fonts
 const fraunces = Fraunces({

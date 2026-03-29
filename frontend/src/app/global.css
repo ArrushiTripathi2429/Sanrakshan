@@ -17,3 +17,7 @@ body {
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
 }
+
+.leaflet-tile {
+  filter: brightness(0.72) saturate(0.55) hue-rotate(15deg) !important;
+}

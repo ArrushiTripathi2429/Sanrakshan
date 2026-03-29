@@ -14,7 +14,7 @@ const VOLUNTEERS = [
   { id: 6, name: "Deepak Tiwari", skills: ["Safety", "Construction"], avail: true, color: "#f59e0b", init: "DT" },
 ];
 
-const MAPTILER_KEY = "HM59a9JA1VrdbDNkObtI";
+
 
 const sevStyles = {
   high:   { badge: "bg-red-500/15 text-red-400 border-red-500/30",   bar: "bg-red-500",   dot: "#ef4444" },
@@ -43,19 +43,26 @@ export default function AdminPage() {
     mapInstanceRef.current.remove();
     mapInstanceRef.current = null; }
 
-    
     const init = async () => {
-      const L = (await import("leaflet")).default;
-      await import("leaflet/dist/leaflet.css");
-      const map = L.map(mapRef.current, { zoomControl: false }).setView([26.22, 81.28], 11);
-      L.tileLayer(
-        `https://api.maptiler.com/maps/dataviz-dark/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`,
-        { tileSize: 512, zoomOffset: -1, attribution: "© MapTiler", crossOrigin: true }
-      ).addTo(map);
-      L.control.zoom({ position: "bottomright" }).addTo(map);
-      mapInstanceRef.current = map;
-      VILLAGES_DATA.forEach((v) => addMarker(L, map, { ...v, issues: 0 }));
-    };
+  const L = (await import("leaflet")).default;
+  await import("leaflet/dist/leaflet.css");
+
+  
+  const map = L.map(mapRef.current, { zoomControl: false }).setView([26.22, 81.28], 11);
+
+
+  mapInstanceRef.current = map;
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap contributors',
+    maxZoom: 19
+  }).addTo(map);
+
+  L.control.zoom({ position: "bottomright" }).addTo(map);
+
+  VILLAGES_DATA.forEach((v) => addMarker(L, map, { ...v, issues: 0 }));
+};
+   
     init();
   }, []);
 
