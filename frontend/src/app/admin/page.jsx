@@ -10,7 +10,7 @@ import {
   doc,
   updateDoc,
 } from "firebase/firestore";
-import VILLAGES_DATA from "../../data/villages";
+import VILLAGES_DATA from "@/data/villages";
 
 const VOLUNTEERS = [
   { id: 1, name: "Neha Gupta",    skills: ["Medical", "First Aid"],    avail: true,  color: "#6366f1", init: "NG" },
