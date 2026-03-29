@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup, updateProfile } from "firebase/auth";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
 const ROLE_META = {
@@ -85,11 +85,14 @@ export default function AuthPage() {
     setLoading(true);
     try {
       const user = auth.currentUser;
+      await updateProfile(user, { displayName: name.trim() });
       await setDoc(doc(db, "users", user.uid), {
         name: name.trim(),
         email: user.email,
         photo: user.photoURL || null,
         role: role,
+        available: true,
+        uid: user.uid,
         createdAt: new Date(),
       });
       setUserName(name.trim());

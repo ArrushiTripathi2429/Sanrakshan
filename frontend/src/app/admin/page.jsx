@@ -1,25 +1,21 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import {
   collection,
   onSnapshot,
   orderBy,
   query,
+  where,
   doc,
   updateDoc,
 } from "firebase/firestore";
 import VILLAGES_DATA from "@/data/villages";
 
-const VOLUNTEERS = [
-  { id: 1, name: "Neha Gupta",    skills: ["Medical", "First Aid"],    avail: true,  color: "#6366f1", init: "NG" },
-  { id: 2, name: "Arjun Mishra",  skills: ["Construction", "Safety"],  avail: true,  color: "#3b82f6", init: "AM" },
-  { id: 3, name: "Kavya Rao",     skills: ["Education", "Water"],      avail: false, color: "#8b5cf6", init: "KR" },
-  { id: 4, name: "Rohit Pandey",  skills: ["Food", "Logistics"],       avail: true,  color: "#06b6d4", init: "RP" },
-  { id: 5, name: "Sunita Verma",  skills: ["Medical", "Elderly Care"], avail: true,  color: "#ec4899", init: "SV" },
-  { id: 6, name: "Deepak Tiwari", skills: ["Safety", "Construction"],  avail: true,  color: "#f59e0b", init: "DT" },
-];
+// volunteer colors assigned by index
+const VOL_COLORS = ["#6366f1","#3b82f6","#8b5cf6","#06b6d4","#ec4899","#f59e0b","#86efac","#f87171"];
+const initials = (name) => name ? name.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase() : "?";
 
 const sevStyles = {
   high:   { dot: "#ef4444" },
@@ -39,6 +35,7 @@ export default function AdminPage() {
     VILLAGES_DATA.map((v) => ({ ...v, issues: 0 }))
   );
   const [issues,   setIssues]   = useState([]);
+  const [volunteers, setVolunteers] = useState([]);
   const [selIssue, setSelIssue] = useState(null);
   const [selVol,   setSelVol]   = useState(null);
   const [search,   setSearch]   = useState("");
@@ -47,7 +44,22 @@ export default function AdminPage() {
   const [toast,    setToast]    = useState({ show: false, icon: "", msg: "" });
   const [assigning, setAssigning] = useState(false);
 
-  
+  // ── Real-time volunteers from Firestore ─────────────────────────────────────
+  useEffect(() => {
+    const q = query(collection(db, "users"), where("role", "==", "volunteer"));
+    const unsub = onSnapshot(q, (snap) => {
+      setVolunteers(snap.docs.map((d, i) => ({
+        id: d.id,
+        ...d.data(),
+        color: VOL_COLORS[i % VOL_COLORS.length],
+        init: initials(d.data().name),
+        avail: d.data().available !== false,
+      })));
+    });
+    return () => unsub();
+  }, []);
+
+  // ── Init Leaflet map ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (mapInstanceRef.current) {
       mapInstanceRef.current.remove();
@@ -379,17 +391,24 @@ export default function AdminPage() {
                   <span style={{ fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.18em", color: "rgba(232,245,233,0.35)" }}>Field Responders</span>
                 </div>
                 <span style={{ fontSize: "0.65rem", padding: "3px 10px", borderRadius: 100, background: "rgba(134,239,172,0.08)", border: "1px solid rgba(134,239,172,0.15)", color: "#86efac" }}>
-                  {VOLUNTEERS.filter(v => v.avail).length} available
+                  {volunteers.filter(v => v.avail).length} available
                 </span>
               </div>
               <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
-                {VOLUNTEERS.map((vol) => (
+                {volunteers.length === 0 ? (
+                  <div style={{ padding: "32px 24px", textAlign: "center" }}>
+                    <div style={{ fontSize: "1.8rem", marginBottom: 10, opacity: 0.3 }}>👤</div>
+                    <div style={{ fontSize: "0.82rem", color: "rgba(232,245,233,0.22)", lineHeight: 1.6 }}>
+                      No volunteers yet.<br />They'll appear here once they sign in.
+                    </div>
+                  </div>
+                ) : volunteers.map((vol) => (
                   <div key={vol.id} onClick={() => vol.avail && setSelVol(vol)} style={{ padding: "14px 20px", borderRadius: 14, display: "flex", alignItems: "center", gap: 16, cursor: vol.avail ? "pointer" : "default", border: selVol?.id === vol.id ? "1px solid rgba(134,239,172,0.3)" : "1px solid rgba(255,255,255,0.06)", background: selVol?.id === vol.id ? "rgba(134,239,172,0.05)" : "rgba(255,255,255,0.02)", opacity: vol.avail ? 1 : 0.35, transition: "all 0.2s" }}>
                     <div style={{ width: 42, height: 42, borderRadius: 12, flexShrink: 0, background: `${vol.color}18`, border: `1px solid ${vol.color}30`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "0.78rem", fontWeight: 700, color: vol.color }}>{vol.init}</div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: "0.88rem", fontWeight: 600, color: "#f0fdf4", marginBottom: 4 }}>{vol.name}</div>
                       <div style={{ display: "flex", gap: 5 }}>
-                        {vol.skills.map((s) => <span key={s} style={{ fontSize: "0.62rem", padding: "2px 8px", borderRadius: 4, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", color: "rgba(232,245,233,0.4)" }}>{s}</span>)}
+                        {(vol.skills || [vol.email]).filter(Boolean).map((s) => <span key={s} style={{ fontSize: "0.62rem", padding: "2px 8px", borderRadius: 4, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", color: "rgba(232,245,233,0.4)" }}>{s}</span>)}
                       </div>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
