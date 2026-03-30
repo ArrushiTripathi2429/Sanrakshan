@@ -1,3 +1,5 @@
+
+# all gemini related stuff here. 
 import os
 import json
 import re

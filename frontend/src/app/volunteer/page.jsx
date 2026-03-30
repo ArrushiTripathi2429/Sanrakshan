@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { db, auth } from "@/lib/firebase";
 import {
   collection, query, where, onSnapshot,
   doc, updateDoc, serverTimestamp,
 } from "firebase/firestore";
+import VILLAGES_DATA from "@/data/villages";
 
 const categoryColor = {
   flood: "#67e8f9", medical: "#f87171", road: "#fbbf24",
@@ -27,6 +28,161 @@ function timeAgo(date) {
   if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
   return date.toLocaleDateString("en-IN");
+}
+
+// ── Find village coords from name ─────────────────────────────────────────────
+function findVillageCoords(nameOrLocation) {
+  if (!nameOrLocation) return null;
+  const lower = nameOrLocation.toLowerCase();
+  const match = VILLAGES_DATA.find(v =>
+    lower.includes(v.name.toLowerCase()) || v.name.toLowerCase().includes(lower)
+  );
+  return match ? { lat: match.lat, lng: match.lng, name: match.name } : null;
+}
+
+// ── Task Map Component ────────────────────────────────────────────────────────
+function TaskMap({ village, location }) {
+  const mapRef    = useRef(null);
+  const mapInst   = useRef(null);
+  const [info, setInfo] = useState(null); // { distance, duration }
+  const [gpsError, setGpsError] = useState(false);
+
+  const dest = findVillageCoords(village || location);
+
+  useEffect(() => {
+    if (!dest || !mapRef.current) return;
+    if (mapInst.current) { mapInst.current.remove(); mapInst.current = null; }
+
+    const init = async () => {
+      const L = (await import("leaflet")).default;
+      await import("leaflet/dist/leaflet.css");
+
+      const map = L.map(mapRef.current, { zoomControl: false, attributionControl: false })
+        .setView([dest.lat, dest.lng], 13);
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(map);
+      L.control.zoom({ position: "bottomright" }).addTo(map);
+      mapInst.current = map;
+
+      // Destination marker — red pulsing pin
+      const destIcon = L.divIcon({
+        html: `<div style="
+          width:18px;height:18px;border-radius:50%;
+          background:#ef4444;border:3px solid white;
+          box-shadow:0 0 0 4px rgba(239,68,68,0.3),0 2px 8px rgba(0,0,0,0.4);
+        "></div>`,
+        iconSize: [18, 18], iconAnchor: [9, 9], className: "",
+      });
+      L.marker([dest.lat, dest.lng], { icon: destIcon })
+        .addTo(map)
+        .bindPopup(`<b style="font-family:'Outfit',sans-serif">${dest.name}</b><br><span style="font-size:11px;color:#94a3b8">Destination</span>`)
+        .openPopup();
+
+      // Try to get volunteer's GPS and draw route
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          async (pos) => {
+            const { latitude: lat, longitude: lng } = pos.coords;
+
+            // Volunteer marker — blue dot
+            const volIcon = L.divIcon({
+              html: `<div style="
+                width:14px;height:14px;border-radius:50%;
+                background:#67e8f9;border:3px solid white;
+                box-shadow:0 0 0 3px rgba(103,232,249,0.3),0 2px 6px rgba(0,0,0,0.3);
+              "></div>`,
+              iconSize: [14, 14], iconAnchor: [7, 7], className: "",
+            });
+            L.marker([lat, lng], { icon: volIcon })
+              .addTo(map)
+              .bindPopup(`<span style="font-family:'Outfit',sans-serif;font-size:12px">📍 Your location</span>`);
+
+            // Fetch route from OSRM (free, no key)
+            try {
+              const res = await fetch(
+                `https://router.project-osrm.org/route/v1/driving/${lng},${lat};${dest.lng},${dest.lat}?overview=full&geometries=geojson`
+              );
+              const data = await res.json();
+              if (data.routes?.[0]) {
+                const route = data.routes[0];
+                const coords = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+
+                // Draw route polyline
+                L.polyline(coords, {
+                  color: "#fbbf24", weight: 4, opacity: 0.85,
+                  dashArray: null,
+                }).addTo(map);
+
+                // Fit map to show both points
+                map.fitBounds(L.latLngBounds([[lat, lng], [dest.lat, dest.lng]]).pad(0.2));
+
+                // Distance + ETA
+                const km = (route.distance / 1000).toFixed(1);
+                const mins = Math.ceil(route.duration / 60);
+                setInfo({ distance: `${km} km`, duration: mins < 60 ? `~${mins} min` : `~${Math.round(mins/60)}h ${mins%60}m` });
+              }
+            } catch {
+              // OSRM failed — just fit to destination
+              map.setView([dest.lat, dest.lng], 13);
+            }
+          },
+          () => {
+            setGpsError(true);
+            map.setView([dest.lat, dest.lng], 13);
+          },
+          { timeout: 6000 }
+        );
+      } else {
+        setGpsError(true);
+      }
+    };
+
+    init();
+    return () => { if (mapInst.current) { mapInst.current.remove(); mapInst.current = null; } };
+  }, [dest?.lat, dest?.lng]);
+
+  if (!dest) return (
+    <div style={{ padding: "14px 0", fontSize: "0.78rem", color: "rgba(226,237,228,0.3)" }}>
+      📍 Location not matched to a known village
+    </div>
+  );
+
+  return (
+    <div style={{ marginBottom: 16 }}>
+      {/* Info bar */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#67e8f9" }} />
+            <span style={{ fontSize: "0.68rem", color: "rgba(226,237,228,0.4)" }}>You</span>
+          </div>
+          <span style={{ fontSize: "0.68rem", color: "rgba(226,237,228,0.2)" }}>→</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444" }} />
+            <span style={{ fontSize: "0.68rem", color: "rgba(226,237,228,0.4)" }}>{dest.name}</span>
+          </div>
+        </div>
+        {info && (
+          <div style={{ display: "flex", gap: 10 }}>
+            <span style={{ fontSize: "0.72rem", color: "#fbbf24", fontWeight: 600 }}>{info.distance}</span>
+            <span style={{ fontSize: "0.72rem", color: "rgba(226,237,228,0.4)" }}>{info.duration}</span>
+          </div>
+        )}
+        {gpsError && (
+          <span style={{ fontSize: "0.68rem", color: "rgba(226,237,228,0.25)" }}>GPS unavailable · showing destination</span>
+        )}
+      </div>
+
+      {/* Map */}
+      <div style={{
+        height: 220, borderRadius: 12, overflow: "hidden",
+        border: "1px solid rgba(251,191,36,0.15)",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
+      }}>
+        <div ref={mapRef} style={{ width: "100%", height: "100%" }} />
+      </div>
+    </div>
+  );
 }
 
 export default function VolunteerPage() {
@@ -287,6 +443,12 @@ export default function VolunteerPage() {
                         👥 ~{task.affected} people affected
                       </div>
                     )}
+
+                    {/* DESTINATION MAP */}
+                    {task.status === "assigned" && (
+                      <TaskMap village={task.village} location={task.location} />
+                    )}
+
                     {task.status === "assigned" && (
                       completing ? (
                         <div className="vl-completing">
@@ -299,7 +461,7 @@ export default function VolunteerPage() {
                             ✓ Mark as Complete
                           </button>
                           <button className="vl-btn-secondary" onClick={(e) => { e.stopPropagation(); window.open(`https://maps.google.com?q=${encodeURIComponent(task.village || task.location)}`); }}>
-                            🗺 Directions
+                            🗺 Open in Maps
                           </button>
                         </div>
                       )
