@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { db, auth } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 import {
   collection,
   addDoc,
@@ -44,13 +45,20 @@ export default function FieldWorkerPage() {
   const [submitted, setSubmitted] = useState(false);
   const [reports, setReports] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [user, setUser] = useState(auth.currentUser);
   const intervalRef = useRef(null);
   const mediaRef = useRef(null);
   const chunksRef = useRef([]);
 
+  // ── Auth state ────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (u) => setUser(u));
+    return () => unsub();
+  }, []);
+
   // ── Fetch real-time reports from Firestore ──────────────────────────────────
   useEffect(() => {
-    const uid = auth.currentUser?.uid;
+    const uid = user?.uid;
     if (!uid) return;
 
     const q = query(
@@ -348,10 +356,10 @@ export default function FieldWorkerPage() {
           <div className="fw-sidebar-footer">
             <div className="fw-user">
               <div className="fw-avatar">
-                {auth.currentUser?.displayName?.[0] || "F"}
+                {user?.displayName?.[0] || "F"}
               </div>
               <div>
-                <div className="fw-user-name">{auth.currentUser?.displayName || "Field Worker"}</div>
+                <div className="fw-user-name">{user?.displayName || "Field Worker"}</div>
                 <div className="fw-user-role">Field Worker</div>
               </div>
             </div>

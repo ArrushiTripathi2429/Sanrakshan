@@ -6,6 +6,7 @@ import {
   collection, query, where, onSnapshot,
   doc, updateDoc, serverTimestamp,
 } from "firebase/firestore";
+import { onAuthStateChanged } from "firebase/auth";
 import VILLAGES_DATA from "@/data/villages";
 
 const categoryColor = {
@@ -194,17 +195,22 @@ export default function VolunteerPage() {
   const [available, setAvailable] = useState(true);
   const user = auth.currentUser;
 
+  // ── Auth state ────────────────────────────────────────────────────────────
+  const [currentUser, setCurrentUser] = useState(auth.currentUser);
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, u => setCurrentUser(u));
+    return () => unsub();
+  }, []);
+
   // ── Real-time listener: tasks assigned to this volunteer ──────────────────
   useEffect(() => {
-    // Match by volunteer name (since admin assigns by name from VOLUNTEERS list)
-    // We query all assigned reports and filter client-side by name
     const q = query(
       collection(db, "reports"),
       where("assigned", "==", true)
     );
 
     const unsub = onSnapshot(q, (snap) => {
-      const userName = user?.displayName || "";
+      const userName = currentUser?.displayName || "";
       const docs = snap.docs
         .map((d) => ({
           id: d.id,
@@ -215,14 +221,13 @@ export default function VolunteerPage() {
             ? timeAgo(d.data().createdAt.toDate())
             : "Just now",
         }))
-        // show tasks assigned to this user, or all if not logged in (demo mode)
-        .filter((d) => !userName || d.assignedTo === userName);
+        .filter((d) => !currentUser?.displayName || d.assignedTo === currentUser.displayName);
       setTasks(docs);
       setLoading(false);
     });
 
     return () => unsub();
-  }, [user]);
+  }, [currentUser]);
 
   const filtered = tasks.filter((t) =>
     filter === "all" ? true : filter === "active" ? t.status === "assigned" : t.status === "resolved"
@@ -230,6 +235,16 @@ export default function VolunteerPage() {
 
   const activeCount    = tasks.filter((t) => t.status === "assigned").length;
   const completedCount = tasks.filter((t) => t.status === "resolved").length;
+
+  const handleToggleAvailable = async () => {
+    const next = !available;
+    setAvailable(next);
+    if (currentUser?.uid) {
+      try {
+        await updateDoc(doc(db, "users", currentUser.uid), { available: next });
+      } catch (e) { console.error(e); }
+    }
+  };
 
   const handleComplete = async (taskId) => {
     setCompleting(true);
@@ -239,11 +254,8 @@ export default function VolunteerPage() {
         resolvedAt: serverTimestamp(),
       });
       setSelected(null);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setCompleting(false);
-    }
+    } catch (e) { console.error(e); }
+    finally { setCompleting(false); }
   };
 
   return (
@@ -325,7 +337,7 @@ export default function VolunteerPage() {
           <div className="vl-avail" style={{ marginTop: 12 }}>
             <span className="vl-avail-label">Available</span>
             <button
-              onClick={() => setAvailable((v) => !v)}
+              onClick={handleToggleAvailable}
               style={{
                 width: 36, height: 20, borderRadius: 100, border: "none", cursor: "pointer",
                 position: "relative", flexShrink: 0,
@@ -342,9 +354,9 @@ export default function VolunteerPage() {
           </div>
           <div className="vl-sidebar-footer">
             <div className="vl-user">
-              <div className="vl-avatar">{user?.displayName?.[0] || "V"}</div>
+              <div className="vl-avatar">{currentUser?.displayName?.[0] || "V"}</div>
               <div>
-                <div className="vl-user-name">{user?.displayName || "Volunteer"}</div>
+                <div className="vl-user-name">{currentUser?.displayName || "Volunteer"}</div>
                 <div className="vl-user-role">Volunteer</div>
               </div>
             </div>
