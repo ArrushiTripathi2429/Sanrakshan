@@ -44,7 +44,8 @@ export default function AdminPage() {
   const [toast,    setToast]    = useState({ show: false, icon: "", msg: "" });
   const [assigning, setAssigning] = useState(false);
 
-  // ── Real-time volunteers from Firestore ─────────────────────────────────────
+  
+  //  Real-time volunteers from Firestore
   useEffect(() => {
     const q = query(collection(db, "users"), where("role", "==", "volunteer"));
     const unsub = onSnapshot(q, (snap) => {
@@ -59,7 +60,7 @@ export default function AdminPage() {
     return () => unsub();
   }, []);
 
-  // ── Init Leaflet map ─────────────────────────────────────────────────────────
+  //  Leaflet map
   useEffect(() => {
     if (mapInstanceRef.current) {
       mapInstanceRef.current.remove();
