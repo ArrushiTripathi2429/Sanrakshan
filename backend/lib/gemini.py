@@ -5,13 +5,16 @@ import json
 import re
 import google.generativeai as genai
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 
-# ── Model ────────────────────────────────────────────────────────────────────
+# ── Model
 model = genai.GenerativeModel("gemini-1.5-flash")
 
-# ── Prompt template for voice/text report extraction ─────────────────────────
+
 EXTRACT_PROMPT = """
 You are an AI assistant for Sanrakshan, a disaster relief system in Raebareli district, Uttar Pradesh, India.
 
@@ -87,7 +90,7 @@ async def score_priorities(reports: list[dict]) -> list[dict]:
     if not reports:
         return []
 
-    # Format reports for the prompt
+    
     reports_text = "\n".join([
         f"- ID: {r.get('id')} | Category: {r.get('category')} | "
         f"Severity: {r.get('severity')} | Affected: {r.get('affected', 'unknown')} | "
@@ -103,12 +106,12 @@ async def score_priorities(reports: list[dict]) -> list[dict]:
 
 def _parse_json_response(text: str) -> dict | list:
     """Strip markdown fences and parse JSON from Gemini response."""
-    # Remove ```json ... ``` or ``` ... ``` wrappers if present
+
     cleaned = re.sub(r"```(?:json)?\s*", "", text).replace("```", "").strip()
     try:
         return json.loads(cleaned)
     except json.JSONDecodeError:
-        # Try to extract JSON object/array from the text
+    
         match = re.search(r"(\{.*\}|\[.*\])", cleaned, re.DOTALL)
         if match:
             return json.loads(match.group(1))
