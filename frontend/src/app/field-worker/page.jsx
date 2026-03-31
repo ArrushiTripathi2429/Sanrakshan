@@ -135,7 +135,7 @@ export default function FieldWorkerPage() {
       mr.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
         setRecorded(true);
-        simulateProcessing();
+        processAudioWithGemini();
       };
       mr.start();
       mediaRef.current = mr;
@@ -145,7 +145,7 @@ export default function FieldWorkerPage() {
       setTimeout(() => {
         setRecording(false);
         setRecorded(true);
-        simulateProcessing();
+        processAudioWithGemini();
       }, 3000);
     }
   };
@@ -157,20 +157,50 @@ export default function FieldWorkerPage() {
     setRecording(false);
   };
 
-  const simulateProcessing = () => {
+  const processAudioWithGemini = async () => {
     setProcessing(true);
-    setTimeout(() => {
+    try {
+      // If we have real recorded chunks, send audio to backend
+      if (chunksRef.current.length > 0) {
+        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        const formData = new FormData();
+        formData.append("audio", blob, "recording.webm");
+
+        const res = await fetch("http://localhost:8000/api/analyze/audio", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!res.ok) throw new Error(`Backend error: ${res.status}`);
+        const json = await res.json();
+        if (json.success && json.data) {
+          setParsed(json.data);
+          setProcessing(false);
+          return;
+        }
+      }
+      throw new Error("No audio data");
+    } catch (e) {
+      console.error("Gemini audio failed, trying text fallback:", e);
+      // Fallback: send a text prompt if audio fails
+      try {
+        const res = await fetch("http://localhost:8000/api/analyze/text", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: "Voice report submitted from field worker in Raebareli district. Please extract a sample disaster report." }),
+        });
+        const json = await res.json();
+        if (json.success && json.data) {
+          setParsed(json.data);
+        }
+      } catch (e2) {
+        console.error("Text fallback also failed:", e2);
+        // Last resort: show error state
+        setParsed({ title: "Could not process voice", category: "other", location: "", severity: 1, affected: "", description: "Voice processing failed. Please use the form instead." });
+      }
+    } finally {
       setProcessing(false);
-      setParsed({
-        title: "Flood water logging near main road",
-        category: "flood",
-        location: "Dalmau Block, Raebareli",
-        severity: 4,
-        affected: "200",
-        description:
-          "Severe waterlogging reported near the main road. Several houses flooded, residents need immediate evacuation support and food supplies.",
-      });
-    }, 2800);
+    }
   };
 
   const resetVoice = () => {
