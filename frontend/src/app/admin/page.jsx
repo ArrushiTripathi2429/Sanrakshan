@@ -7,6 +7,7 @@ import {
   doc, updateDoc, addDoc, serverTimestamp,
 } from "firebase/firestore";
 import VILLAGES_DATA from "@/data/villages";
+import DownloadReport from "@/components/DownloadReport";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -475,7 +476,17 @@ export default function AdminPage() {
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
               <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#86efac", boxShadow: "0 0 8px #86efac" }} />
+
+
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+  <DownloadReport issues={issues} villages={villages} />
+  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+    <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#86efac", boxShadow: "0 0 8px #86efac" }} />
+    <span style={{ fontSize: "0.72rem", color: "#86efac", fontWeight: 500 }}>Live</span>
+  </div>
+</div>
               <span style={{ fontSize: "0.72rem", color: "#86efac", fontWeight: 500 }}>Live</span>
+              
             </div>
           </div>
         </header>
