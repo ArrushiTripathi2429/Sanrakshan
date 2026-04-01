@@ -19,11 +19,7 @@ const VOL_COLORS = ["#6366f1","#3b82f6","#8b5cf6","#06b6d4","#ec4899","#f59e0b",
 const initials = (name) =>
   name ? name.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase() : "?";
 
-const sevStyles = {
-  high:   { dot: "#ef4444" },
-  medium: { dot: "#f59e0b" },
-  low:    { dot: "#22c55e" },
-};
+const sevDot = { high: "#ef4444", medium: "#f59e0b", low: "#22c55e" };
 
 const CAT_COLORS = {
   flood: "#67e8f9", medical: "#f87171", road: "#fbbf24",
@@ -32,17 +28,23 @@ const CAT_COLORS = {
 };
 
 const STAT_COLORS = ["#f87171", "#67e8f9", "#86efac"];
+
+
+
 function ChartTip({ active, payload, label }) {
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ background: "#0d1f12", border: "1px solid rgba(134,239,172,0.15)", borderRadius: 10, padding: "8px 14px" }}>
+    <div style={{
+      background: "#0d1f12", border: "1px solid rgba(134,239,172,0.15)",
+      borderRadius: 10, padding: "8px 14px",
+    }}>
       <div style={{ fontSize: "0.7rem", color: "rgba(232,245,233,0.4)", marginBottom: 2 }}>{label}</div>
       <div style={{ fontSize: "0.9rem", fontWeight: 700, color: "#86efac" }}>{payload[0].value}</div>
     </div>
   );
 }
+ // chart section
 
-//  ChartsSection 
 function ChartsSection({ issues }) {
   const catData = Object.entries(
     issues.reduce((a, i) => {
@@ -71,15 +73,11 @@ function ChartsSection({ issues }) {
   const card = {
     background: "rgba(255,255,255,0.015)",
     border: "1px solid rgba(255,255,255,0.07)",
-    borderRadius: 18,
-    padding: "20px 22px",
+    borderRadius: 18, padding: "20px 22px",
   };
   const lbl = {
-    fontSize: "0.68rem",
-    textTransform: "uppercase",
-    letterSpacing: "0.15em",
-    color: "rgba(232,245,233,0.3)",
-    marginBottom: 14,
+    fontSize: "0.68rem", textTransform: "uppercase",
+    letterSpacing: "0.15em", color: "rgba(232,245,233,0.3)", marginBottom: 14,
   };
 
   return (
@@ -92,7 +90,7 @@ function ChartsSection({ issues }) {
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 260px", gap: 16 }}>
 
-        {/* Bar chart — by category */}
+        {/* Bar — by category */}
         <div style={card}>
           <div style={lbl}>By Category</div>
           <ResponsiveContainer width="100%" height={170}>
@@ -107,7 +105,7 @@ function ChartsSection({ issues }) {
           </ResponsiveContainer>
         </div>
 
-        {/* Line chart — last 7 days */}
+        {/* Line — last 7 days */}
         <div style={card}>
           <div style={lbl}>Last 7 Days</div>
           <ResponsiveContainer width="100%" height={170}>
@@ -115,12 +113,13 @@ function ChartsSection({ issues }) {
               <XAxis dataKey="label" tick={{ fill: "rgba(232,245,233,0.35)", fontSize: 10 }} axisLine={false} tickLine={false} />
               <YAxis tick={{ fill: "rgba(232,245,233,0.25)", fontSize: 10 }} axisLine={false} tickLine={false} allowDecimals={false} />
               <Tooltip content={<ChartTip />} />
-              <Line type="monotone" dataKey="count" stroke="#fbbf24" strokeWidth={2.5} dot={{ fill: "#fbbf24", r: 4, strokeWidth: 0 }} activeDot={{ r: 6 }} />
+              <Line type="monotone" dataKey="count" stroke="#fbbf24" strokeWidth={2.5}
+                dot={{ fill: "#fbbf24", r: 4, strokeWidth: 0 }} activeDot={{ r: 6 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Donut chart — by status */}
+        {/* Donut — by status */}
         <div style={card}>
           <div style={lbl}>Status</div>
           {statData.length > 0 ? (
@@ -157,7 +156,8 @@ function ChartsSection({ issues }) {
   );
 }
 
-//  AdminPage
+
+
 export default function AdminPage() {
   const mapRef          = useRef(null);
   const mapInstanceRef  = useRef(null);
@@ -171,7 +171,7 @@ export default function AdminPage() {
   const [selIssue,   setSelIssue]   = useState(null);
   const [selVol,     setSelVol]     = useState(null);
   const [search,     setSearch]     = useState("");
-  const [modal,      setModal]      = useState({ open: false, villageId: null });
+  const [modal,      setModal]      = useState({ open: false, issue: null });
   const [form,       setForm]       = useState({ village: "1", cat: "water", sev: "medium", desc: "" });
   const [toast,      setToast]      = useState({ show: false, icon: "", msg: "" });
   const [assigning,  setAssigning]  = useState(false);
@@ -179,15 +179,16 @@ export default function AdminPage() {
   useEffect(() => {
     const q = query(collection(db, "users"), where("role", "==", "volunteer"));
     const unsub = onSnapshot(q, (snap) => {
-      setVolunteers(
-        snap.docs.map((d, i) => ({
-          id: d.id,
-          ...d.data(),
-          color: VOL_COLORS[i % VOL_COLORS.length],
-          init: initials(d.data().name),
-          avail: d.data().available !== false,
-        }))
-      );
+      const vols = snap.docs.map((d, i) => ({
+        id: d.id,
+        ...d.data(),
+        color: VOL_COLORS[i % VOL_COLORS.length],
+        init: initials(d.data().name),
+        avail: d.data().available !== false,
+      }));
+      setVolunteers(vols);
+      // Keep global in sync for map popups
+      window.__volunteers = vols;
     });
     return () => unsub();
   }, []);
@@ -205,8 +206,7 @@ export default function AdminPage() {
       const map = L.map(mapRef.current, { zoomControl: false }).setView([26.22, 81.28], 11);
       mapInstanceRef.current = map;
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "© OpenStreetMap",
-        maxZoom: 19,
+        attribution: "© OpenStreetMap", maxZoom: 19,
       }).addTo(map);
       L.control.zoom({ position: "bottomright" }).addTo(map);
       VILLAGES_DATA.forEach((v) => addMarker(L, map, { ...v, issues: 0 }));
@@ -227,7 +227,6 @@ export default function AdminPage() {
           : "Just now",
       }));
 
-      // Pending = unassigned and not resolved
       const pending = docs.filter((i) => !i.assigned && i.status !== "resolved");
 
       if (pending.length > 0) {
@@ -237,26 +236,19 @@ export default function AdminPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               reports: pending.map((r) => ({
-                id: r.id,
-                title: r.title,
-                description: r.description,
-                category: r.category,
-                severity: r.severity,
-                affected: r.affected,
-                location: r.location,
-                village: r.village,
+                id: r.id, title: r.title, description: r.description,
+                category: r.category, severity: r.severity,
+                affected: r.affected, location: r.location, village: r.village,
               })),
             }),
           });
           if (res.ok) {
             const data = await res.json();
-            // data expected: [{ id, score, reason }, ...]
             const scoreMap = {};
             (data.scores || data).forEach((s) => { scoreMap[s.id] = s; });
             const merged = docs.map((d) =>
               scoreMap[d.id] ? { ...d, score: scoreMap[d.id].score, reason: scoreMap[d.id].reason } : d
             );
-            // Sort pending by score desc, keep rest in original order
             const scoredPending = merged
               .filter((i) => !i.assigned && i.status !== "resolved")
               .sort((a, b) => (b.score || 0) - (a.score || 0));
@@ -272,9 +264,9 @@ export default function AdminPage() {
         setIssues(docs);
       }
 
-      // Update village issue counts
+      
       const counts = {};
-      docs.filter((i) => !i.assigned).forEach((i) => {
+      docs.filter((i) => !i.assigned && i.status !== "resolved").forEach((i) => {
         VILLAGES_DATA.forEach((v) => {
           if (
             i.location?.toLowerCase().includes(v.name.toLowerCase()) ||
@@ -294,21 +286,35 @@ export default function AdminPage() {
       });
     });
     return () => unsub();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, []);
+
+  
 
   const getColor  = (v) => v.issues > 0 ? "#ef4444" : (v.type === "city" || v.type === "town") ? "#3b82f6" : "#22c55e";
   const getRadius = (v) => v.type === "city" ? 11 : v.type === "town" ? 8 : 6;
 
-  const buildPopupHTML = (v) => {
-    const status = v.issues > 0
-      ? `<span style="color:#f87171;font-weight:600">⚠️ ${v.issues} Issues Active</span>`
-      : `<span style="color:#4ade80;font-weight:600">✅ Zone Secure</span>`;
-    return `<div style="font-family:'Outfit',sans-serif;min-width:180px;padding:4px">
+  const buildPopupHTML = (v, vols) => {
+    const issueBadge = v.issues > 0
+      ? `<span style="background:rgba(239,68,68,0.15);color:#f87171;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600">⚠ ${v.issues} Issues</span>`
+      : `<span style="background:rgba(34,197,94,0.12);color:#4ade80;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600">✓ Zone Secure</span>`;
+
+    const assignBlock = v.issues > 0 ? `
+      <div style="margin-top:10px">
+        <select id="vol-sel-${v.id}" style="width:100%;background:#0d1f12;border:1px solid rgba(134,239,172,0.2);color:#e8f5e9;font-size:11px;padding:6px 8px;border-radius:6px;margin-bottom:6px;font-family:'Outfit',sans-serif">
+          <option value="">— Select volunteer —</option>
+          ${(vols || []).map((vol) => `<option value="${vol.name}">${vol.name}${vol.avail ? "" : " (busy)"}</option>`).join("")}
+        </select>
+        <button onclick="(function(){var s=document.getElementById('vol-sel-${v.id}');if(s&&s.value)window.__assignFromMap(${v.id},s.value);})()" style="width:100%;background:#16a34a;border:none;color:white;font-size:11px;font-weight:700;padding:8px;border-radius:6px;cursor:pointer;font-family:'Outfit',sans-serif">
+          Assign Volunteer
+        </button>
+      </div>` : "";
+
+    return `<div style="font-family:'Outfit',sans-serif;min-width:190px;padding:4px">
       <div style="font-weight:700;font-size:14px;color:#f8fafc;margin-bottom:2px">${v.name}</div>
       <div style="font-size:11px;color:#94a3b8;margin-bottom:10px">${v.hi} · ${v.type.toUpperCase()}</div>
-      <div style="font-size:12px;margin-bottom:12px;padding:6px;background:rgba(0,0,0,0.2);border-radius:6px">${status}</div>
-      <button onclick="window.__openReportModal(${v.id})" style="width:100%;background:#ef4444;border:none;color:white;font-size:11px;font-weight:700;padding:8px;border-radius:6px;cursor:pointer">REPORT INCIDENT</button>
+      <div style="margin-bottom:4px">${issueBadge}</div>
+      ${assignBlock}
     </div>`;
   };
 
@@ -325,7 +331,7 @@ export default function AdminPage() {
       radius: r, color: c, fillColor: c,
       fillOpacity: v.issues > 0 ? 0.9 : 0.7, weight: 2,
     }).addTo(map);
-    m.bindPopup(buildPopupHTML(v));
+    m.bindPopup(buildPopupHTML(v, window.__volunteers || []));
     markersRef.current[v.id] = m;
   };
 
@@ -335,34 +341,57 @@ export default function AdminPage() {
     addMarker(L, map, v);
   };
 
-  // Expose modal opener to Leaflet popup buttons
+  
+
   useEffect(() => {
-    window.__openReportModal = (vid) => openModal(vid);
-    return () => { delete window.__openReportModal; };
+    // Backward compat stub — admin doesn't report from map
+    window.__openReportModal = () => {};
+
+    window.__assignFromMap = async (villageId, volName) => {
+      if (!volName) return;
+      // Find first unassigned issue for this village
+      const target = issues.find(
+        (i) => !i.assigned && i.status !== "resolved" &&
+          (i.villageId === villageId ||
+           VILLAGES_DATA.find((v) => v.id === villageId)?.name?.toLowerCase() === i.village?.toLowerCase())
+      );
+      if (!target) {
+        showToast("⚠️", "No unassigned issue found for this village");
+        return;
+      }
+      try {
+        await updateDoc(doc(db, "reports", target.id), {
+          assigned: true, assignedTo: volName, status: "assigned",
+        });
+        showToast("🤝", `${volName} assigned to ${target.village || target.location}`);
+      } catch (e) {
+        console.error(e);
+        showToast("❌", "Assignment failed");
+      }
+    };
+
+    return () => {
+      delete window.__openReportModal;
+      delete window.__assignFromMap;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [issues]);
 
   
-  const openModal  = (vid) => {
-    setForm((f) => ({ ...f, village: String(vid ?? 1) }));
-    setModal({ open: true, villageId: vid });
-  };
-  const closeModal = () => {
-    setModal({ open: false, villageId: null });
-    setForm((f) => ({ ...f, desc: "" }));
-  };
 
-  
+  const openModal  = (issue) => setModal({ open: true, issue });
+  const closeModal = () => setModal({ open: false, issue: null });
+
   const submitIssue = async () => {
     const vid = parseInt(form.village);
     const v   = villages.find((x) => x.id === vid);
-    const desc = form.desc.trim() || `${form.cat} issue in ${v.name}`;
+    const desc = form.desc.trim() || `${form.cat} issue in ${v?.name}`;
     try {
       await addDoc(collection(db, "reports"), {
         title: desc.slice(0, 55),
-        village: v.name,
+        village: v?.name || "",
         villageId: vid,
-        location: v.name,
+        location: v?.name || "",
         category: form.cat,
         severity: form.sev,
         status: "pending",
@@ -374,35 +403,34 @@ export default function AdminPage() {
       });
     } catch (e) { console.error(e); }
     closeModal();
-    mapInstanceRef.current?.flyTo([v.lat, v.lng], 14, { duration: 1.5 });
-    setTimeout(() => markersRef.current[vid]?.openPopup(), 1600);
-    showToast("🚨", `Alert raised for ${v.name}`);
+    showToast("🚨", `Alert raised for ${v?.name}`);
   };
-  const doAssign = async () => {
-    if (!selIssue || !selVol) return;
+
+  const doAssign = async (issue, volName) => {
+    if (!issue || !volName) return;
     setAssigning(true);
     try {
-      await updateDoc(doc(db, "reports", selIssue.id), {
-        assigned: true,
-        assignedTo: selVol.name,
-        status: "assigned",
+      await updateDoc(doc(db, "reports", issue.id), {
+        assigned: true, assignedTo: volName, status: "assigned",
       });
-      showToast("🤝", `${selVol.name} deployed`);
+      showToast("🤝", `${volName} deployed`);
       setSelIssue(null);
       setSelVol(null);
     } catch (e) { console.error(e); }
     finally { setAssigning(false); }
   };
+
   const showToast = (icon, msg) => {
     setToast({ show: true, icon, msg });
     setTimeout(() => setToast((t) => ({ ...t, show: false })), 3500);
   };
 
-  
   const flyToVillage = (v) => {
     mapInstanceRef.current?.flyTo([v.lat, v.lng], 13, { duration: 1.2 });
     setTimeout(() => markersRef.current[v.id]?.openPopup(), 1300);
   };
+
+  
 
   const filteredVillages = villages.filter(
     (v) => v.name.toLowerCase().includes(search.toLowerCase()) || v.hi.includes(search)
@@ -410,14 +438,19 @@ export default function AdminPage() {
   const problemVillages = filteredVillages.filter((v) => v.issues > 0);
   const safeVillages    = filteredVillages.filter((v) => v.issues === 0);
 
-  
-  const scoreBadgeColor = (score) => {
+  // Severity badge helpers
+  const sc  = (sev) => sev === "high" ? "#f87171" : sev === "medium" ? "#fbbf24" : "#86efac";
+  const sb  = (sev) => sev === "high" ? "rgba(239,68,68,0.12)" : sev === "medium" ? "rgba(245,158,11,0.12)" : "rgba(34,197,94,0.12)";
+  const sbd = (sev) => sev === "high" ? "rgba(239,68,68,0.3)" : sev === "medium" ? "rgba(245,158,11,0.3)" : "rgba(34,197,94,0.3)";
+
+  const scoreBadgeStyle = (score) => {
     if (score >= 70) return { bg: "rgba(239,68,68,0.12)", border: "rgba(239,68,68,0.3)", text: "#f87171" };
     if (score >= 40) return { bg: "rgba(245,158,11,0.12)", border: "rgba(245,158,11,0.3)", text: "#fbbf24" };
     return { bg: "rgba(34,197,94,0.12)", border: "rgba(34,197,94,0.3)", text: "#86efac" };
   };
 
-  
+  //  Rendering
+
   return (
     <>
       <style>{`
@@ -431,6 +464,7 @@ export default function AdminPage() {
         .leaflet-popup-tip{background:#0d1f12!important;}
         .leaflet-popup-content{margin:0!important;}
         @keyframes adm-up{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
+        @keyframes toast-in{from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);}}
         .adm-fade{opacity:0;animation:adm-up 0.5s ease forwards;}
         .adm-1{animation-delay:0.05s;}.adm-2{animation-delay:0.12s;}.adm-3{animation-delay:0.2s;}.adm-4{animation-delay:0.28s;}
       `}</style>
@@ -440,11 +474,12 @@ export default function AdminPage() {
         {/* ── HEADER ── */}
         <header style={{
           height: 64, flexShrink: 0,
-          background: "rgba(8,14,10,0.85)", backdropFilter: "blur(16px)",
+          background: "rgba(8,14,10,0.9)", backdropFilter: "blur(16px)",
           borderBottom: "1px solid rgba(134,239,172,0.08)",
           padding: "0 32px", display: "flex", alignItems: "center", justifyContent: "space-between",
           position: "sticky", top: 0, zIndex: 1000,
         }}>
+          {/* Logo */}
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <div style={{
               width: 38, height: 38, borderRadius: 10,
@@ -457,12 +492,15 @@ export default function AdminPage() {
               <div style={{ fontSize: "0.62rem", color: "rgba(232,245,233,0.3)", textTransform: "uppercase", letterSpacing: "0.18em", marginTop: 3 }}>Admin Command · Raebareli</div>
             </div>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+
+          {/* Right side */}
+          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+            {/* Stat pills */}
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               {[
-                { label: "Alerts",   val: issues.length,                                    color: "#f87171" },
-                { label: "Pending",  val: issues.filter((i) => !i.assigned).length,          color: "#fbbf24" },
-                { label: "Assigned", val: issues.filter((i) => i.assigned).length,           color: "#67e8f9" },
+                { label: "Alerts",   val: issues.length,                                  color: "#f87171" },
+                { label: "Pending",  val: issues.filter((i) => !i.assigned).length,        color: "#fbbf24" },
+                { label: "Assigned", val: issues.filter((i) => i.assigned).length,         color: "#67e8f9" },
               ].map((s) => (
                 <div key={s.label} style={{
                   display: "flex", alignItems: "center", gap: 6,
@@ -474,20 +512,13 @@ export default function AdminPage() {
                 </div>
               ))}
             </div>
+            {/* Live dot */}
             <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
               <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#86efac", boxShadow: "0 0 8px #86efac" }} />
-
-
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-  <DownloadReport issues={issues} villages={villages} />
-  <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-    <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#86efac", boxShadow: "0 0 8px #86efac" }} />
-    <span style={{ fontSize: "0.72rem", color: "#86efac", fontWeight: 500 }}>Live</span>
-  </div>
-</div>
               <span style={{ fontSize: "0.72rem", color: "#86efac", fontWeight: 500 }}>Live</span>
-              
             </div>
+            {/* Download */}
+            <DownloadReport issues={issues} villages={villages} />
           </div>
         </header>
 
@@ -541,18 +572,9 @@ export default function AdminPage() {
 
           {/* ── MAP ── */}
           <div className="adm-fade adm-2" style={{ marginBottom: 28 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <span style={{ width: 3, height: 14, background: "#67e8f9", borderRadius: 2, display: "inline-block" }} />
-                <span style={{ fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.18em", color: "rgba(232,245,233,0.35)" }}>Operational Map</span>
-              </div>
-              <button onClick={() => openModal(null)} style={{
-                background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)",
-                color: "#f87171", fontSize: "0.75rem", fontWeight: 600,
-                padding: "8px 18px", borderRadius: 10, cursor: "pointer", fontFamily: "'Outfit',sans-serif",
-              }}>
-                + Report Incident
-              </button>
+            <div style={{ display: "flex", alignItems: "center", marginBottom: 12 }}>
+              <span style={{ width: 3, height: 14, background: "#67e8f9", borderRadius: 2, display: "inline-block", marginRight: 8 }} />
+              <span style={{ fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.18em", color: "rgba(232,245,233,0.35)" }}>Operational Map</span>
             </div>
             <div style={{
               height: 420, borderRadius: 18, overflow: "hidden",
@@ -568,7 +590,7 @@ export default function AdminPage() {
           </div>
 
           {/* ── ISSUES ── */}
-          <div style={{
+          <div className="adm-fade adm-4" style={{
             background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.07)",
             borderRadius: 18, overflow: "hidden", marginBottom: 20,
           }}>
@@ -584,7 +606,7 @@ export default function AdminPage() {
                 fontSize: "0.65rem", padding: "3px 10px", borderRadius: 100,
                 background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#f87171",
               }}>
-                {issues.filter((i) => !i.assigned).length} unresolved
+                {issues.filter((i) => !i.assigned && i.status !== "resolved").length} unresolved
               </span>
             </div>
 
@@ -598,24 +620,31 @@ export default function AdminPage() {
             ) : (
               <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
                 {issues.map((issue) => {
-                  const sc = issue.score != null ? scoreBadgeColor(issue.score) : null;
+                  const scoreStyle = issue.score != null ? scoreBadgeStyle(issue.score) : null;
+                  const isAssigned = issue.assigned || issue.status === "resolved";
                   return (
                     <div
                       key={issue.id}
-                      onClick={() => !issue.assigned && setSelIssue(issue)}
+                      onClick={() => !isAssigned && openModal(issue)}
                       style={{
                         padding: "16px 20px", borderRadius: 14, position: "relative", overflow: "hidden",
-                        cursor: issue.assigned ? "default" : "pointer",
-                        border: selIssue?.id === issue.id ? "1px solid rgba(103,232,249,0.3)" : "1px solid rgba(255,255,255,0.06)",
-                        background: issue.assigned ? "rgba(255,255,255,0.01)" : selIssue?.id === issue.id ? "rgba(103,232,249,0.05)" : "rgba(255,255,255,0.02)",
-                        opacity: issue.assigned ? 0.45 : 1,
+                        cursor: isAssigned ? "default" : "pointer",
+                        border: selIssue?.id === issue.id
+                          ? "1px solid rgba(103,232,249,0.3)"
+                          : "1px solid rgba(255,255,255,0.06)",
+                        background: isAssigned
+                          ? "rgba(255,255,255,0.01)"
+                          : selIssue?.id === issue.id
+                            ? "rgba(103,232,249,0.05)"
+                            : "rgba(255,255,255,0.02)",
+                        opacity: isAssigned ? 0.5 : 1,
                         transition: "all 0.2s",
                       }}
                     >
                       {/* Severity left bar */}
                       <div style={{
                         position: "absolute", top: 0, left: 0, width: 3, height: "100%",
-                        background: sevStyles[issue.severity]?.dot || "#86efac",
+                        background: sevDot[issue.severity] || "#86efac",
                         borderRadius: "3px 0 0 3px",
                       }} />
 
@@ -633,41 +662,72 @@ export default function AdminPage() {
                             {issue.fieldWorkerName && (
                               <>
                                 <span style={{ opacity: 0.4 }}>·</span>
-                                <span>👤 {issue.fieldWorkerName}</span>
-                              </>
-                            )}
-                            {issue.assigned && (
-                              <>
-                                <span style={{ opacity: 0.4 }}>·</span>
-                                <span style={{ color: "#86efac" }}>✓ {issue.assignedTo}</span>
+                                <span>by {issue.fieldWorkerName}</span>
                               </>
                             )}
                           </div>
+
+                          {/* Inline assign row for unassigned issues */}
+                          {!isAssigned && (
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}
+                            >
+                              <select
+                                defaultValue=""
+                                id={`vol-sel-${issue.id}`}
+                                style={{
+                                  background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.1)",
+                                  borderRadius: 7, padding: "5px 10px", color: "#e8f5e9",
+                                  fontFamily: "'Outfit',sans-serif", fontSize: "0.72rem", outline: "none",
+                                }}
+                              >
+                                <option value="">— Assign volunteer —</option>
+                                {volunteers.map((vol) => (
+                                  <option key={vol.id} value={vol.name}>
+                                    {vol.name}{vol.avail ? "" : " (busy)"}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                onClick={() => {
+                                  const sel = document.getElementById(`vol-sel-${issue.id}`);
+                                  if (sel?.value) doAssign(issue, sel.value);
+                                }}
+                                style={{
+                                  background: "rgba(134,239,172,0.1)", border: "1px solid rgba(134,239,172,0.25)",
+                                  color: "#86efac", fontSize: "0.72rem", fontWeight: 600,
+                                  padding: "5px 14px", borderRadius: 7, cursor: "pointer",
+                                  fontFamily: "'Outfit',sans-serif",
+                                }}
+                              >
+                                Assign
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Assigned indicator */}
+                          {isAssigned && issue.assignedTo && (
+                            <div style={{ marginTop: 8, fontSize: "0.72rem", color: "#86efac", opacity: 0.7 }}>
+                              ✓ {issue.assignedTo}
+                            </div>
+                          )}
                         </div>
 
-                        {/* Badges */}
-                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                          {/* Severity badge */}
+                        {/* Right badges */}
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 }}>
                           <span style={{
-                            fontSize: "0.62rem", fontWeight: 700, padding: "3px 10px", borderRadius: 6,
-                            textTransform: "uppercase", letterSpacing: "0.06em",
-                            background: issue.severity === "high" ? "rgba(239,68,68,0.12)" : issue.severity === "medium" ? "rgba(245,158,11,0.12)" : "rgba(34,197,94,0.12)",
-                            color: issue.severity === "high" ? "#f87171" : issue.severity === "medium" ? "#fbbf24" : "#86efac",
-                            border: `1px solid ${issue.severity === "high" ? "rgba(239,68,68,0.25)" : issue.severity === "medium" ? "rgba(245,158,11,0.25)" : "rgba(34,197,94,0.25)"}`,
+                            fontSize: "0.65rem", fontWeight: 700, padding: "3px 10px", borderRadius: 100,
+                            background: sb(issue.severity), border: `1px solid ${sbd(issue.severity)}`, color: sc(issue.severity),
+                            textTransform: "uppercase", letterSpacing: "0.08em",
                           }}>
-                            {issue.severity}
+                            {issue.severity || "—"}
                           </span>
-
-                          {/* Priority score badge */}
-                          {issue.score != null && sc && (
-                            <span
-                              title={issue.reason || ""}
-                              style={{
-                                fontSize: "0.62rem", fontWeight: 700, padding: "3px 10px", borderRadius: 6,
-                                letterSpacing: "0.06em", cursor: issue.reason ? "help" : "default",
-                                background: sc.bg, color: sc.text, border: `1px solid ${sc.border}`,
-                              }}
-                            >
+                          {scoreStyle && (
+                            <span style={{
+                              fontSize: "0.65rem", fontWeight: 700, padding: "3px 10px", borderRadius: 100,
+                              background: scoreStyle.bg, border: `1px solid ${scoreStyle.border}`, color: scoreStyle.text,
+                            }}>
                               ⚡ {issue.score}
                             </span>
                           )}
@@ -683,7 +743,7 @@ export default function AdminPage() {
           {/* ── VOLUNTEERS ── */}
           <div style={{
             background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.07)",
-            borderRadius: 18, overflow: "hidden", marginBottom: 24,
+            borderRadius: 18, overflow: "hidden", marginBottom: 80,
           }}>
             <div style={{
               padding: "18px 24px", borderBottom: "1px solid rgba(255,255,255,0.06)",
@@ -700,240 +760,202 @@ export default function AdminPage() {
                 {volunteers.filter((v) => v.avail).length} available
               </span>
             </div>
-            <div style={{ padding: "12px 16px", display: "flex", flexDirection: "column", gap: 8 }}>
-              {volunteers.length === 0 ? (
-                <div style={{ padding: "32px 24px", textAlign: "center" }}>
-                  <div style={{ fontSize: "1.8rem", marginBottom: 10, opacity: 0.3 }}>👤</div>
-                  <div style={{ fontSize: "0.82rem", color: "rgba(232,245,233,0.22)", lineHeight: 1.6 }}>
-                    No volunteers yet.<br />They'll appear here once they sign in.
-                  </div>
-                </div>
-              ) : volunteers.map((vol) => (
-                <div
-                  key={vol.id}
-                  onClick={() => vol.avail && setSelVol(vol)}
-                  style={{
-                    padding: "14px 20px", borderRadius: 14, display: "flex", alignItems: "center", gap: 16,
-                    cursor: vol.avail ? "pointer" : "default",
-                    border: selVol?.id === vol.id ? "1px solid rgba(134,239,172,0.3)" : "1px solid rgba(255,255,255,0.06)",
-                    background: selVol?.id === vol.id ? "rgba(134,239,172,0.05)" : "rgba(255,255,255,0.02)",
-                    opacity: vol.avail ? 1 : 0.35,
-                    transition: "all 0.2s",
-                  }}
-                >
-                  <div style={{
-                    width: 42, height: 42, borderRadius: 12, flexShrink: 0,
-                    background: `${vol.color}18`, border: `1px solid ${vol.color}30`,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: "0.78rem", fontWeight: 700, color: vol.color,
-                  }}>
-                    {vol.init}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: "0.88rem", fontWeight: 600, color: "#f0fdf4", marginBottom: 4 }}>{vol.name}</div>
-                    <div style={{ display: "flex", gap: 5 }}>
-                      {(vol.skills || [vol.email]).filter(Boolean).map((s) => (
-                        <span key={s} style={{
-                          fontSize: "0.62rem", padding: "2px 8px", borderRadius: 4,
-                          background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)",
-                          color: "rgba(232,245,233,0.4)",
-                        }}>{s}</span>
-                      ))}
+
+            {volunteers.length === 0 ? (
+              <div style={{ padding: "40px 24px", textAlign: "center" }}>
+                <div style={{ fontSize: "0.82rem", color: "rgba(232,245,233,0.22)" }}>No volunteers registered yet.</div>
+              </div>
+            ) : (
+              <div style={{ padding: "12px 16px", display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 10 }}>
+                {volunteers.map((vol) => (
+                  <div
+                    key={vol.id}
+                    onClick={() => setSelVol(selVol?.id === vol.id ? null : vol)}
+                    style={{
+                      padding: "14px 16px", borderRadius: 12, cursor: "pointer",
+                      border: selVol?.id === vol.id
+                        ? "1px solid rgba(134,239,172,0.35)"
+                        : "1px solid rgba(255,255,255,0.06)",
+                      background: selVol?.id === vol.id
+                        ? "rgba(134,239,172,0.06)"
+                        : "rgba(255,255,255,0.02)",
+                      transition: "all 0.2s",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: "50%", flexShrink: 0,
+                        background: vol.color, display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: "0.78rem", fontWeight: 700, color: "#080e0a",
+                      }}>
+                        {vol.init}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "#f0fdf4", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {vol.name}
+                        </div>
+                        <div style={{ fontSize: "0.68rem", color: "rgba(232,245,233,0.35)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {vol.skills || vol.email || "Volunteer"}
+                        </div>
+                      </div>
+                      <div style={{
+                        width: 8, height: 8, borderRadius: "50%", flexShrink: 0,
+                        background: vol.avail ? "#22c55e" : "#f59e0b",
+                        boxShadow: vol.avail ? "0 0 6px #22c55e" : "none",
+                      }} />
                     </div>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <div style={{
-                      width: 7, height: 7, borderRadius: "50%",
-                      background: vol.avail ? "#86efac" : "#fbbf24",
-                      boxShadow: vol.avail ? "0 0 8px #86efac" : "none",
-                    }} />
-                    <span style={{ fontSize: "0.65rem", color: vol.avail ? "#86efac" : "#fbbf24" }}>
-                      {vol.avail ? "Available" : "Busy"}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* ── STICKY ASSIGN BAR ── */}
-          <div className="adm-fade adm-4" style={{
-            position: "sticky", bottom: 20,
-            background: "rgba(8,14,10,0.9)", backdropFilter: "blur(20px)",
-            border: "1px solid rgba(134,239,172,0.12)", borderRadius: 16,
-            padding: "16px 24px", display: "flex", alignItems: "center", gap: 20,
-            boxShadow: "0 8px 40px rgba(0,0,0,0.5)",
-          }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: "0.62rem", textTransform: "uppercase", letterSpacing: "0.15em", color: "rgba(232,245,233,0.25)", marginBottom: 5 }}>Assignment</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{
-                  padding: "4px 12px", borderRadius: 8,
-                  background: selIssue ? "rgba(103,232,249,0.08)" : "rgba(255,255,255,0.03)",
-                  border: `1px solid ${selIssue ? "rgba(103,232,249,0.2)" : "rgba(255,255,255,0.06)"}`,
-                  color: selIssue ? "#67e8f9" : "rgba(232,245,233,0.2)", fontSize: "0.75rem",
-                }}>
-                  {selIssue ? ((selIssue.title || selIssue.description)?.slice(0, 30) + "...") : "Select an issue"}
-                </span>
-                <span style={{ color: "rgba(232,245,233,0.2)" }}>→</span>
-                <span style={{
-                  padding: "4px 12px", borderRadius: 8,
-                  background: selVol ? "rgba(134,239,172,0.08)" : "rgba(255,255,255,0.03)",
-                  border: `1px solid ${selVol ? "rgba(134,239,172,0.2)" : "rgba(255,255,255,0.06)"}`,
-                  color: selVol ? "#86efac" : "rgba(232,245,233,0.2)", fontSize: "0.75rem",
-                }}>
-                  {selVol ? selVol.name : "Select a responder"}
-                </span>
+                ))}
               </div>
-            </div>
-            <button
-              disabled={!selIssue || !selVol || assigning}
-              onClick={doAssign}
-              style={{
-                padding: "12px 28px", borderRadius: 12, border: "none",
-                background: selIssue && selVol ? "linear-gradient(135deg,#86efac,#4ade80)" : "rgba(255,255,255,0.04)",
-                color: selIssue && selVol ? "#080e0a" : "rgba(232,245,233,0.2)",
-                fontFamily: "'Outfit',sans-serif", fontWeight: 700, fontSize: "0.82rem",
-                cursor: selIssue && selVol ? "pointer" : "not-allowed", transition: "all 0.2s",
-              }}
-            >
-              {assigning ? "Deploying..." : "Deploy Responder"}
-            </button>
+            )}
           </div>
 
         </main>
-      </div>
 
-      {/* ── MODAL ── */}
-      {modal.open && (
-        <div style={{
-          position: "fixed", inset: 0,
-          background: "rgba(8,14,10,0.88)", backdropFilter: "blur(12px)",
-          zIndex: 2000, display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
-        }}>
+        {/* ── STICKY ASSIGN BAR ── */}
+        {selIssue && selVol && (
           <div style={{
-            background: "#0d1f12", border: "1px solid rgba(134,239,172,0.12)",
-            borderRadius: 20, padding: "32px 28px", width: "100%", maxWidth: 480,
-            boxShadow: "0 24px 80px rgba(0,0,0,0.6)",
+            position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 900,
+            background: "rgba(8,14,10,0.95)", backdropFilter: "blur(20px)",
+            borderTop: "1px solid rgba(134,239,172,0.15)",
+            padding: "14px 32px", display: "flex", alignItems: "center", justifyContent: "space-between",
           }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
               <div>
-                <div style={{ fontFamily: "'Fraunces',serif", fontWeight: 600, fontSize: "1.15rem", color: "#f0fdf4" }}>Report Incident</div>
-                <div style={{ fontSize: "0.7rem", color: "rgba(232,245,233,0.3)", marginTop: 3 }}>Submit a new field report</div>
+                <div style={{ fontSize: "0.7rem", color: "rgba(232,245,233,0.35)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Issue</div>
+                <div style={{ fontSize: "0.88rem", fontWeight: 600, color: "#f0fdf4" }}>
+                  {selIssue.title?.slice(0, 40) || "Selected issue"}
+                </div>
               </div>
-              <button onClick={closeModal} style={{
-                width: 32, height: 32, borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)",
-                background: "rgba(255,255,255,0.03)", color: "rgba(232,245,233,0.4)",
-                cursor: "pointer", fontSize: "1rem", display: "flex", alignItems: "center", justifyContent: "center",
-              }}>×</button>
+              <div style={{ width: 1, height: 32, background: "rgba(255,255,255,0.08)" }} />
+              <div>
+                <div style={{ fontSize: "0.7rem", color: "rgba(232,245,233,0.35)", textTransform: "uppercase", letterSpacing: "0.1em" }}>Volunteer</div>
+                <div style={{ fontSize: "0.88rem", fontWeight: 600, color: "#86efac" }}>{selVol.name}</div>
+              </div>
             </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {/* Village select */}
-              <div>
-                <label style={{ fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(232,245,233,0.3)", display: "block", marginBottom: 6 }}>Village</label>
-                <select
-                  value={form.village}
-                  onChange={(e) => setForm((f) => ({ ...f, village: e.target.value }))}
-                  style={{
-                    width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
-                    borderRadius: 10, padding: "10px 14px", color: "#f0fdf4",
-                    fontFamily: "'Outfit',sans-serif", fontSize: "0.85rem", outline: "none",
-                  }}
-                >
-                  {VILLAGES_DATA.map((v) => (
-                    <option key={v.id} value={String(v.id)} style={{ background: "#0d1f12" }}>{v.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Category + Severity row */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                <div>
-                  <label style={{ fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(232,245,233,0.3)", display: "block", marginBottom: 6 }}>Category</label>
-                  <select
-                    value={form.cat}
-                    onChange={(e) => setForm((f) => ({ ...f, cat: e.target.value }))}
-                    style={{
-                      width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
-                      borderRadius: 10, padding: "10px 14px", color: "#f0fdf4",
-                      fontFamily: "'Outfit',sans-serif", fontSize: "0.85rem", outline: "none",
-                    }}
-                  >
-                    {Object.keys(CAT_COLORS).map((c) => (
-                      <option key={c} value={c} style={{ background: "#0d1f12" }}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(232,245,233,0.3)", display: "block", marginBottom: 6 }}>Severity</label>
-                  <select
-                    value={form.sev}
-                    onChange={(e) => setForm((f) => ({ ...f, sev: e.target.value }))}
-                    style={{
-                      width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
-                      borderRadius: 10, padding: "10px 14px", color: "#f0fdf4",
-                      fontFamily: "'Outfit',sans-serif", fontSize: "0.85rem", outline: "none",
-                    }}
-                  >
-                    {["low", "medium", "high"].map((s) => (
-                      <option key={s} value={s} style={{ background: "#0d1f12" }}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Description */}
-              <div>
-                <label style={{ fontSize: "0.68rem", textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(232,245,233,0.3)", display: "block", marginBottom: 6 }}>Description</label>
-                <textarea
-                  value={form.desc}
-                  onChange={(e) => setForm((f) => ({ ...f, desc: e.target.value }))}
-                  placeholder="Describe the incident..."
-                  rows={3}
-                  style={{
-                    width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
-                    borderRadius: 10, padding: "10px 14px", color: "#f0fdf4",
-                    fontFamily: "'Outfit',sans-serif", fontSize: "0.85rem", outline: "none",
-                    resize: "vertical", lineHeight: 1.6,
-                  }}
-                />
-              </div>
-
-              {/* Actions */}
-              <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-                <button onClick={closeModal} style={{
-                  flex: 1, padding: "12px", borderRadius: 12,
-                  border: "1px solid rgba(255,255,255,0.08)", background: "none",
-                  color: "rgba(232,245,233,0.4)", fontFamily: "'Outfit',sans-serif",
-                  fontSize: "0.82rem", cursor: "pointer",
-                }}>Cancel</button>
-                <button onClick={submitIssue} style={{
-                  flex: 2, padding: "12px", borderRadius: 12, border: "none",
-                  background: "linear-gradient(135deg,#ef4444,#dc2626)",
-                  color: "white", fontFamily: "'Outfit',sans-serif",
-                  fontWeight: 700, fontSize: "0.82rem", cursor: "pointer",
-                }}>🚨 Submit Report</button>
-              </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => { setSelIssue(null); setSelVol(null); }}
+                style={{
+                  background: "transparent", border: "1px solid rgba(255,255,255,0.1)",
+                  color: "rgba(232,245,233,0.5)", fontSize: "0.78rem",
+                  padding: "8px 18px", borderRadius: 9, cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => doAssign(selIssue, selVol.name)}
+                disabled={assigning}
+                style={{
+                  background: assigning ? "rgba(134,239,172,0.1)" : "rgba(134,239,172,0.15)",
+                  border: "1px solid rgba(134,239,172,0.3)",
+                  color: "#86efac", fontSize: "0.78rem", fontWeight: 700,
+                  padding: "8px 22px", borderRadius: 9, cursor: assigning ? "not-allowed" : "pointer",
+                  fontFamily: "'Outfit',sans-serif",
+                }}
+              >
+                {assigning ? "Deploying…" : "Deploy →"}
+              </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* ── TOAST ── */}
-      {toast.show && (
-        <div style={{
-          position: "fixed", bottom: 90, left: "50%", transform: "translateX(-50%)",
-          background: "#0d1f12", border: "1px solid rgba(134,239,172,0.2)",
-          borderRadius: 12, padding: "12px 22px",
-          display: "flex", alignItems: "center", gap: 10,
-          boxShadow: "0 8px 32px rgba(0,0,0,0.5)", zIndex: 3000,
-          animation: "adm-up 0.3s ease forwards",
-        }}>
-          <span style={{ fontSize: "1.1rem" }}>{toast.icon}</span>
-          <span style={{ fontSize: "0.85rem", color: "#f0fdf4", fontWeight: 500 }}>{toast.msg}</span>
-        </div>
-      )}
+        {/* ── ISSUE DETAIL MODAL ── */}
+        {modal.open && modal.issue && (
+          <div
+            onClick={closeModal}
+            style={{
+              position: "fixed", inset: 0, zIndex: 2000,
+              background: "rgba(0,0,0,0.7)", backdropFilter: "blur(6px)",
+              display: "flex", alignItems: "center", justifyContent: "center", padding: 24,
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: "#0d1f12", border: "1px solid rgba(134,239,172,0.15)",
+                borderRadius: 20, padding: "28px 32px", width: "100%", maxWidth: 520,
+                boxShadow: "0 24px 80px rgba(0,0,0,0.6)",
+                animation: "adm-up 0.25s ease",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20 }}>
+                <div>
+                  <div style={{ fontFamily: "'Fraunces',serif", fontSize: "1.1rem", fontWeight: 700, color: "#f0fdf4", marginBottom: 4 }}>
+                    {modal.issue.title || "Issue Details"}
+                  </div>
+                  <div style={{ fontSize: "0.72rem", color: "rgba(232,245,233,0.35)" }}>
+                    {modal.issue.village || modal.issue.location} · {modal.issue.date}
+                  </div>
+                </div>
+                <button onClick={closeModal} style={{
+                  background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)",
+                  color: "rgba(232,245,233,0.5)", width: 32, height: 32, borderRadius: 8,
+                  cursor: "pointer", fontSize: "1rem", display: "flex", alignItems: "center", justifyContent: "center",
+                }}>×</button>
+              </div>
+
+              {/* Detail rows */}
+              {[
+                ["Category",    modal.issue.category],
+                ["Severity",    modal.issue.severity],
+                ["Affected",    modal.issue.affected ? `~${modal.issue.affected} people` : "—"],
+                ["Reported by", modal.issue.fieldWorkerName || "—"],
+                ["Status",      modal.issue.status || "pending"],
+                ["Assigned to", modal.issue.assignedTo || "Unassigned"],
+              ].map(([k, v]) => (
+                <div key={k} style={{
+                  display: "flex", justifyContent: "space-between", alignItems: "center",
+                  padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.05)",
+                }}>
+                  <span style={{ fontSize: "0.72rem", color: "rgba(232,245,233,0.35)", textTransform: "uppercase", letterSpacing: "0.1em" }}>{k}</span>
+                  <span style={{ fontSize: "0.82rem", color: "#f0fdf4", fontWeight: 500 }}>{v || "—"}</span>
+                </div>
+              ))}
+
+              {modal.issue.description && (
+                <div style={{ marginTop: 16, padding: 14, background: "rgba(255,255,255,0.03)", borderRadius: 10 }}>
+                  <div style={{ fontSize: "0.68rem", color: "rgba(232,245,233,0.3)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>Description</div>
+                  <div style={{ fontSize: "0.82rem", color: "rgba(232,245,233,0.7)", lineHeight: 1.6 }}>{modal.issue.description}</div>
+                </div>
+              )}
+
+              {modal.issue.reason && (
+                <div style={{ marginTop: 12, padding: 14, background: "rgba(134,239,172,0.04)", borderRadius: 10, border: "1px solid rgba(134,239,172,0.1)" }}>
+                  <div style={{ fontSize: "0.68rem", color: "rgba(134,239,172,0.5)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>AI Priority Reason</div>
+                  <div style={{ fontSize: "0.78rem", color: "rgba(232,245,233,0.6)", lineHeight: 1.6 }}>{modal.issue.reason}</div>
+                </div>
+              )}
+
+              <button onClick={closeModal} style={{
+                marginTop: 20, width: "100%",
+                background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+                color: "rgba(232,245,233,0.5)", fontSize: "0.78rem",
+                padding: "10px", borderRadius: 10, cursor: "pointer", fontFamily: "'Outfit',sans-serif",
+              }}>
+                Close
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── TOAST ── */}
+        {toast.show && (
+          <div style={{
+            position: "fixed", bottom: 28, left: "50%", transform: "translateX(-50%)",
+            zIndex: 3000, animation: "toast-in 0.3s ease",
+            background: "#0d1f12", border: "1px solid rgba(134,239,172,0.2)",
+            borderRadius: 12, padding: "12px 22px",
+            display: "flex", alignItems: "center", gap: 10,
+            boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+          }}>
+            <span style={{ fontSize: "1.1rem" }}>{toast.icon}</span>
+            <span style={{ fontSize: "0.82rem", color: "#f0fdf4", fontWeight: 500 }}>{toast.msg}</span>
+          </div>
+        )}
+
+      </div>
     </>
   );
 }
