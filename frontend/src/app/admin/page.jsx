@@ -344,7 +344,7 @@ export default function AdminPage() {
   
 
   useEffect(() => {
-    // Backward compat stub — admin doesn't report from map
+    
     window.__openReportModal = () => {};
 
     window.__assignFromMap = async (villageId, volName) => {
@@ -374,7 +374,7 @@ export default function AdminPage() {
       delete window.__openReportModal;
       delete window.__assignFromMap;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    
   }, [issues]);
 
   
@@ -403,7 +403,7 @@ export default function AdminPage() {
       });
     } catch (e) { console.error(e); }
     closeModal();
-    showToast("🚨", `Alert raised for ${v?.name}`);
+    showToast("", `Alert raised for ${v?.name}`);
   };
 
   const doAssign = async (issue, volName) => {
@@ -413,7 +413,7 @@ export default function AdminPage() {
       await updateDoc(doc(db, "reports", issue.id), {
         assigned: true, assignedTo: volName, status: "assigned",
       });
-      showToast("🤝", `${volName} deployed`);
+      showToast("", `${volName} deployed`);
       setSelIssue(null);
       setSelVol(null);
     } catch (e) { console.error(e); }
