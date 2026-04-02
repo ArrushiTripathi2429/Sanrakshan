@@ -58,7 +58,7 @@ const techStack = [
   { name: "Firebase Auth", desc: "Google Sign-in", icon: "" },
   { name: "Next.js 14", desc: "Frontend framework", icon: "" },
   { name: "FastAPI", desc: "AI backend server", icon: "" },
-  { name: "OpenStreetMap", desc: "Free maps + routing", icon: "" },
+  { name: "GoogleMaps", desc: "Free maps + routing", icon: "" },
 ];
 
 export default function HomePage() {
@@ -283,7 +283,7 @@ export default function HomePage() {
         <section className="section">
           <p style={{ fontSize: "0.7rem", letterSpacing: "0.18em", textTransform: "uppercase", color: "rgba(232,245,233,0.25)", marginBottom: 16 }}>Built with</p>
           <h2 className="section-title">Google-first tech stack</h2>
-          <p className="section-sub">Entirely built on Google and open-source technologies — no paid APIs except Gemini's free tier.</p>
+          <p className="section-sub">Entirely built on Google and open-source technologies.</p>
           <div className="tech-grid">
             {techStack.map(t => (
               <div key={t.name} className="tech-card">
