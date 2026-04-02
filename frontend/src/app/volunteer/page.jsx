@@ -56,12 +56,16 @@ function TaskMap({ village, location }) {
 
     const init = async () => {
       const L = (await import("leaflet")).default;
-      await import("leaflet/dist/leaflet.css");
 
       const map = L.map(mapRef.current, { zoomControl: false, attributionControl: false })
         .setView([dest.lat, dest.lng], 13);
 
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(map);
+      L.tileLayer(
+        process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY
+          ? `https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY}`
+          : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        { attribution: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ? "© Google Maps" : "© OpenStreetMap", maxZoom: 20 }
+      ).addTo(map);
       L.control.zoom({ position: "bottomright" }).addTo(map);
       mapInst.current = map;
 

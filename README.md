@@ -1,6 +1,6 @@
 # Sanrakshan — Smart Resource Allocation System
-
-AI-powered disaster response system that detects, prioritizes, and resolves rural issues in real time.
+ 
+AI-powered  response system that detects, prioritizes, and resolves rural issues in real time. Especially desgined for rural people. 
 
 Sanrakshan connects affected communities with the right volunteers — powered by Gemini AI, grounded in local data.
 
@@ -8,7 +8,7 @@ Sanrakshan connects affected communities with the right volunteers — powered b
 
 ## The Problem
 
-In rural disaster zones like Raebareli, a affected villager in emergency situations doesn't have time to fill forms. Emergency responders don't know which village needs help most urgently. Volunteers get assigned randomly, not by skill or proximity.
+In rural zones like Raebareli, a affected villager in emergency situations doesn't have time to fill forms. Emergency responders don't know which village needs help most urgently. Volunteers get assigned randomly, not by skill or proximity.
 
 **Sanrakshan solves this with three connected dashboards and real-time AI.**
 

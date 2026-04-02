@@ -1,5 +1,6 @@
 import { Fraunces, Outfit } from "next/font/google";
 import "./global.css";
+import "leaflet/dist/leaflet.css";
 
 // Define fonts
 const fraunces = Fraunces({

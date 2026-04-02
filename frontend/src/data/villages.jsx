@@ -1,10 +1,10 @@
 const VILLAGES_DATA = [
-  { id: 1,  name: "Rae Bareli",       hi: "रायबरेली",        lat: 26.2309, lng: 81.2408, type: "city" },
+  { id: 1,  name: "Rae Bareli",       hi: "रायबरेली",        lat: 26.2303, lng: 81.2409, type: "city" },
   { id: 2,  name: "Lalganj",          hi: "लालगंज",          lat: 26.2477, lng: 81.7098, type: "town" },
   { id: 3,  name: "Salon",            hi: "सलोन",            lat: 26.1586, lng: 81.4369, type: "town" },
   { id: 4,  name: "Dalmau",           hi: "डलमऊ",            lat: 25.9939, lng: 81.0450, type: "town" },
   { id: 5,  name: "Unchahar",         hi: "ऊंचाहार",         lat: 26.1013, lng: 81.3594, type: "town" },
-  { id: 6,  name: "Bachhrawan",       hi: "बछरावां",         lat: 26.3309, lng: 81.3221, type: "town" },
+  { id: 6,  name: "Bachhrawan",       hi: "बछरावां",         lat: 26.4710, lng: 81.1127, type: "town" },
   { id: 7,  name: "Harchandpur",      hi: "हरचंदपुर",        lat: 26.3933, lng: 81.0831, type: "town" },
   { id: 8,  name: "Tiloi",            hi: "तिलोई",           lat: 26.0419, lng: 81.5134, type: "town" },
   { id: 9,  name: "Sareni",           hi: "सरेनी",           lat: 26.2450, lng: 81.0311, type: "town" },
