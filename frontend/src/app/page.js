@@ -38,12 +38,12 @@ const dashboards = [
 ];
 
 const features = [
-  { icon: "🎙️", title: "Voice Reports in Hindi", desc: "Field workers speak in Hindi or Bhojpuri. Gemini 2.0 Flash transcribes and extracts village, category, severity, and affected count — no literacy required.", color: "#86efac" },
-  { icon: "🗺️", title: "Live Crisis Map", desc: "56 villages in Raebareli on a real-time map. Markers turn red the moment a report is submitted. Heatmap view shows crisis density across the district.", color: "#67e8f9" },
-  { icon: "⚡", title: "AI Priority Scoring", desc: "Gemini ranks every active incident 1–100 by urgency. Admin sees the most critical issues first — not just the newest ones.", color: "#f87171" },
-  { icon: "🧭", title: "Route Navigation", desc: "Volunteers get a live route map from their GPS location to the affected village. Distance and ETA shown. One tap to open Google Maps.", color: "#fbbf24" },
-  { icon: "📊", title: "Analytics Dashboard", desc: "Real-time charts showing incidents by category, 7-day trend, and status breakdown. All driven by live Firestore data.", color: "#c084fc" },
-  { icon: "📄", title: "PDF Incident Reports", desc: "Admin can download a full PDF summary — all incidents, villages, affected counts, assigned volunteers — in one click.", color: "#fb923c" },
+  { icon: "", title: "Voice Reports in Hindi", desc: "Field workers speak in Hindi or Bhojpuri. Gemini 2.0 Flash transcribes and extracts village, category, severity, and affected count — no literacy required.", color: "#86efac" },
+  { icon: "", title: "Live Crisis Map", desc: "56 villages in Raebareli on a real-time map. Markers turn red the moment a report is submitted. Heatmap view shows crisis density across the district.", color: "#67e8f9" },
+  { icon: "", title: "AI Priority Scoring", desc: "Gemini ranks every active incident 1–100 by urgency. Admin sees the most critical issues first — not just the newest ones.", color: "#f87171" },
+  { icon: "", title: "Route Navigation", desc: "Volunteers get a live route map from their GPS location to the affected village. Distance and ETA shown. One tap to open Google Maps.", color: "#fbbf24" },
+  { icon: "", title: "Analytics Dashboard", desc: "Real-time charts showing incidents by category, 7-day trend, and status breakdown. All driven by live Firestore data.", color: "#c084fc" },
+  { icon: "", title: "PDF Incident Reports", desc: "Admin can download a full PDF summary — all incidents, villages, affected counts, assigned volunteers — in one click.", color: "#fb923c" },
 ];
 
 const steps = [
@@ -53,12 +53,12 @@ const steps = [
 ];
 
 const techStack = [
-  { name: "Gemini 2.0 Flash", desc: "Voice processing + priority scoring", icon: "✦" },
-  { name: "Firebase Firestore", desc: "Real-time database", icon: "🔥" },
-  { name: "Firebase Auth", desc: "Google Sign-in", icon: "🔐" },
-  { name: "Next.js 14", desc: "Frontend framework", icon: "▲" },
-  { name: "FastAPI", desc: "AI backend server", icon: "⚡" },
-  { name: "OpenStreetMap", desc: "Free maps + routing", icon: "🗺️" },
+  { name: "Gemini 2.0 Flash", desc: "Voice processing + priority scoring", icon: "" },
+  { name: "Firebase Firestore", desc: "Real-time database", icon: "" },
+  { name: "Firebase Auth", desc: "Google Sign-in", icon: "" },
+  { name: "Next.js 14", desc: "Frontend framework", icon: "" },
+  { name: "FastAPI", desc: "AI backend server", icon: "" },
+  { name: "OpenStreetMap", desc: "Free maps + routing", icon: "" },
 ];
 
 export default function HomePage() {
