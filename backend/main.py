@@ -5,6 +5,7 @@ from routes.analyze import router as analyze_router
 from routes.priority import router as priority_router
 from routes.early_warning import router as early_warning_router
 from routes.weather import router as weather_router
+from routes.village_profiles import router as village_profiles_router
 
 load_dotenv()
 
@@ -21,6 +22,7 @@ app.include_router(analyze_router, prefix="/api")
 app.include_router(priority_router, prefix="/api")
 app.include_router(early_warning_router, prefix="/api")
 app.include_router(weather_router, prefix="/api")
+app.include_router(village_profiles_router, prefix="/api")
 
 @app.get("/")
 def root():

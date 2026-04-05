@@ -46,7 +46,8 @@ PRIORITY_PROMPT = """
 You are a disaster relief coordinator for Raebareli district, India.
 
 Given the following active reports, rank them by urgency and assign a priority score (1-100).
-Consider: severity level, number of people affected, category (flood/medical are highest), and recency.
+Consider: severity level, number of people affected, category (flood/medical are highest), recency,
+AND the village vulnerability score (higher vulnerability = harder to reach, fewer resources).
 
 Reports:
 {reports}
@@ -86,16 +87,24 @@ async def analyze_text(text: str) -> dict:
 async def score_priorities(reports: list[dict]) -> list[dict]:
     """
     Given a list of active reports, return them with priority scores.
+    Enriches with village vulnerability data from Layer 1.
     """
     if not reports:
         return []
 
-    
+    try:
+        from routes.village_profiles import get_profile
+    except Exception:
+        def get_profile(x): return {}
+
     reports_text = "\n".join([
         f"- ID: {r.get('id')} | Category: {r.get('category')} | "
         f"Severity: {r.get('severity')} | Affected: {r.get('affected', 'unknown')} | "
         f"Location: {r.get('village') or r.get('location')} | "
-        f"Title: {r.get('title', '')}"
+        f"Title: {r.get('title', '')} | "
+        f"Village Vulnerability: {get_profile(r.get('village') or r.get('location', '')).get('vulnerability_score', 'unknown')} | "
+        f"Hospital Distance: {get_profile(r.get('village') or r.get('location', '')).get('hospital_distance', 'unknown')} | "
+        f"Population: {get_profile(r.get('village') or r.get('location', '')).get('population', 'unknown')}"
         for r in reports
     ])
 
