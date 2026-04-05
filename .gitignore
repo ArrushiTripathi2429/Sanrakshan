@@ -7,3 +7,4 @@ venv/
 backend/data/raw/
 backend/data/processed/
 backend/data/enriched_villages.json
+backend/data/serviceAccountKey.json

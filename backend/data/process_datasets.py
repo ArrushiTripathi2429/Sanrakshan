@@ -238,33 +238,62 @@ def compute_vulnerability_score(profile: dict) -> int:
 
 
 def main():
-    print("Processing Layer 1 datasets...")
-
-    amenities = process_village_amenities()
-    education = process_education()
-    sanitation = process_sanitation()
-
-    # Merge all into enriched profiles
+    print("Processing all 1773 villages...")
+    
     enriched = {}
-    all_villages = set(list(amenities.keys()) + list(education.keys()) + list(sanitation.keys()))
+    filepath = os.path.join(RAW_DIR, "village_amenities.csv")
+    
+    with open(filepath, encoding="utf-8-sig", errors="replace") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            village_name = row.get("Village Name", "").strip()
+            if not village_name:
+                continue
 
-    for village in all_villages:
-        profile = {}
-        profile.update(amenities.get(village, {}))
-        profile.update(education.get(village, {}))
-        profile.update(sanitation.get(village, {}))
-        profile["vulnerability_score"] = compute_vulnerability_score(profile)
-        enriched[village] = profile
+            def safe_int(val, default=0):
+                try: return int(str(val).strip().replace(",", "")) if val and str(val).strip() not in ("NA", "", "N.A.") else default
+                except: return default
 
-    # Save to JSON
+            def safe_float(val, default=0.0):
+                try: return float(str(val).strip().replace(",", "")) if val and str(val).strip() not in ("NA", "", "N.A.") else default
+                except: return default
+
+            phc_in_village = safe_int(row.get("Primary Health Centre (Numbers)", 0)) > 0
+            phc_dist_code = row.get("(If Primary Health Centre not available within the village, the distance range code of nearest place where facility is available is given viz; a for < 5 Kms, b for 5-10 Kms and c for 10+ kms ). ", "").strip()
+            phc_dist_label = "In village" if phc_in_village else {"a": "<5 km", "b": "5-10 km", "c": "10+ km"}.get(phc_dist_code, "Unknown")
+
+            hosp_in_village = safe_int(row.get("Hospital Allopathic (Numbers)", 0)) > 0
+            hosp_dist_code = row.get("(If Hospital Allopathic not available within the village, the distance range code of nearest place where facility is available is given viz; a for < 5 Kms, b for 5-10 Kms and c for 10+ kms ). ", "").strip()
+            hosp_dist_label = "In village" if hosp_in_village else {"a": "<5 km", "b": "5-10 km", "c": "10+ km"}.get(hosp_dist_code, "Unknown")
+
+            profile = {
+                "village_name": village_name,
+                "cd_block": row.get("CD Block Name", "").strip(),
+                "gram_panchayat": row.get("Gram Panchayat Name", "").strip(),
+                "population": safe_int(row.get("Total Population of Village", 0)),
+                "households": safe_int(row.get("Total  Households ", 0)),
+                "sc_population": safe_int(row.get("Total Scheduled Castes Population of Village", 0)),
+                "phc_distance": phc_dist_label,
+                "hospital_distance": hosp_dist_label,
+                "road_type": "pucca" if safe_int(row.get("Black Topped (pucca) Road (Status A(1)/NA(2))", 2)) == 1 else "kuchha",
+                "water_source": "tap" if safe_int(row.get("Tap Water-Treated (Status A(1)/NA(2))", 2)) == 1 else "handpump",
+                "has_power": safe_int(row.get("Power Supply For Domestic Use (Status A(1)/NA(2))", 2)) == 1,
+                "has_anganwadi": safe_int(row.get("Nutritional Centres-Anganwadi Centre (Status A(1)/NA(2))", 2)) == 1,
+                "has_mobile_coverage": safe_int(row.get("Mobile Phone Coverage (Status A(1)/NA(2))", 2)) == 1,
+                "has_pucca_road": safe_int(row.get("Black Topped (pucca) Road (Status A(1)/NA(2))", 2)) == 1,
+                "nearest_town": row.get("Nearest Town Name", "").strip(),
+                "nearest_town_dist_km": safe_float(row.get("Nearest Town Distance from Village (in Km.)", 0)),
+            }
+
+            profile["vulnerability_score"] = compute_vulnerability_score(profile)
+            enriched[village_name] = profile
+
     with open(OUT_FILE, "w", encoding="utf-8") as f:
         json.dump(enriched, f, indent=2, ensure_ascii=False)
 
-    print(f"\nDone. Enriched {len(enriched)} villages → {OUT_FILE}")
-    print("\nSample output:")
+    print(f"✅ Done. {len(enriched)} villages enriched → {OUT_FILE}")
     for name, data in list(enriched.items())[:3]:
         print(f"  {name}: pop={data.get('population',0)}, vuln={data.get('vulnerability_score',0)}, hospital={data.get('hospital_distance','?')}")
-
 
 if __name__ == "__main__":
     main()
