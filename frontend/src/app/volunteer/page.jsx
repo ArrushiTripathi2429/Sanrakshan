@@ -22,6 +22,10 @@ const categoryLabel = {
 const severityLabel = ["", "Low", "Low-Med", "Medium", "High", "Critical"];
 const severityColor = ["", "#86efac", "#a3e635", "#fbbf24", "#fb923c", "#f87171"];
 const VOLUNTEER_SKILLS = ["Teaching", "Medical", "Legal Aid", "Agriculture", "Construction", "Counseling", "Water", "Logistics"];
+const CACHE_KEYS = {
+  tasks: "volunteer_tasks_cache_v1",
+  requests: "volunteer_requests_cache_v1",
+};
 
 function timeAgo(date) {
   if (!date) return "Just now";
@@ -200,6 +204,7 @@ export default function VolunteerPage() {
   const [available, setAvailable] = useState(true);
   const [incomingRequests, setIncomingRequests] = useState([]);
   const [profileBusy, setProfileBusy] = useState(false);
+  const [syncHint, setSyncHint] = useState("");
   const [profile, setProfile] = useState({
     skills: [],
     languages: "",
@@ -212,6 +217,22 @@ export default function VolunteerPage() {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, u => setCurrentUser(u));
     return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    try {
+      const cachedTasks = localStorage.getItem(CACHE_KEYS.tasks);
+      const cachedRequests = localStorage.getItem(CACHE_KEYS.requests);
+      if (cachedTasks) {
+        setTasks(JSON.parse(cachedTasks));
+        setLoading(false);
+      }
+      if (cachedRequests) {
+        setIncomingRequests(JSON.parse(cachedRequests));
+      }
+    } catch (e) {
+      console.error("Volunteer cache read failed:", e);
+    }
   }, []);
 
   // Load volunteer profile data
@@ -258,9 +279,11 @@ export default function VolunteerPage() {
           .filter((d) => !currentUser?.displayName || d.assignedTo === currentUser.displayName);
         setTasks(docs);
         setLoading(false);
+        localStorage.setItem(CACHE_KEYS.tasks, JSON.stringify(docs));
       },
       (error) => {
         console.error("Unable to read assigned tasks:", error);
+        setSyncHint("Connection is slow. Showing cached tasks.");
         setLoading(false);
       }
     );
@@ -282,9 +305,11 @@ export default function VolunteerPage() {
           .map((d) => ({ id: d.id, ...d.data() }))
           .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
         setIncomingRequests(docs);
+        localStorage.setItem(CACHE_KEYS.requests, JSON.stringify(docs));
       },
       (error) => {
         console.error("Unable to read need requests:", error);
+        setSyncHint("Connection is slow. Showing cached requests.");
       }
     );
     return () => unsub();
@@ -489,6 +514,11 @@ export default function VolunteerPage() {
               {available ? "● Available" : "○ Unavailable"}
             </div>
           </div>
+          {syncHint && (
+            <div style={{ marginBottom: 10, fontSize: "0.75rem", color: "#fbbf24" }}>
+              {syncHint}
+            </div>
+          )}
 
           <div className="vl-stats">
             <div className="vl-stat">

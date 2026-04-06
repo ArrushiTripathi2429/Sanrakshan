@@ -7,7 +7,7 @@ Returns top 3 volunteers with score + reasoning.
 import math
 from fastapi import APIRouter
 from pydantic import BaseModel
-from lib.gemini import model
+from lib.gemini import generate_content_with_backoff
 
 router = APIRouter()
 
@@ -90,7 +90,7 @@ async def get_skill_scores(task_desc: str, category: str, volunteers: list[Volun
     )
 
     try:
-        response = model.generate_content(prompt)
+        response = await generate_content_with_backoff(prompt)
         import json, re
         text = re.sub(r"```(?:json)?\s*", "", response.text).replace("```", "").strip()
         scores = json.loads(text)

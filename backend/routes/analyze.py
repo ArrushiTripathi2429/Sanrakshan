@@ -1,6 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from pydantic import BaseModel
 from lib.gemini import analyze_audio, analyze_text
+from lib.pii import redact
 
 router = APIRouter()
 

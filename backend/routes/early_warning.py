@@ -4,7 +4,7 @@ from datetime import datetime
 from fastapi import APIRouter, BackgroundTasks
 from pydantic import BaseModel
 import httpx
-from lib.gemini import model
+from lib.gemini import generate_content_with_backoff
 
 router = APIRouter()
 
@@ -78,7 +78,7 @@ async def triage_with_gemini(headlines: list[dict]) -> list[dict]:
     formatted = "\n".join([f"- {h['title']} ({h['url']})" for h in headlines])
     prompt = GEMINI_TRIAGE_PROMPT.format(headlines=formatted)
     try:
-        response = model.generate_content(prompt)
+        response = await generate_content_with_backoff(prompt)
         import json, re
         text = re.sub(r"```(?:json)?\s*", "", response.text).replace("```", "").strip()
         alerts = json.loads(text)
@@ -114,7 +114,12 @@ async def scan_news(background_tasks: BackgroundTasks):
             unique.append(h)
 
     if not unique:
-        return {"success": True, "alerts": [], "headlines_scanned": 0}
+        return {
+            "success": True,
+            "alerts": [],
+            "headlines_scanned": 0,
+            "message": "No recent alerts",
+        }
 
     # Triage with Gemini
     alerts = await triage_with_gemini(unique)
@@ -123,6 +128,7 @@ async def scan_news(background_tasks: BackgroundTasks):
         "success": True,
         "headlines_scanned": len(unique),
         "alerts": alerts,
+        "message": "No recent alerts" if not alerts else "Alerts detected",
         "scanned_at": datetime.utcnow().isoformat(),
     }
 

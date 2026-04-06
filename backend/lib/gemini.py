@@ -3,9 +3,11 @@
 import os
 import json
 import re
+import asyncio
 import google.generativeai as genai
 from pathlib import Path
 from dotenv import load_dotenv
+from lib.queue import gemini_limiter
 
 load_dotenv()
 
@@ -13,6 +15,7 @@ genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 
 # ── Model
 model = genai.GenerativeModel("gemini-2.5-flash-preview-05-20")
+_gemini_concurrency = asyncio.Semaphore(4)
 
 
 EXTRACT_PROMPT = """
@@ -59,6 +62,23 @@ Return ONLY a JSON array (no markdown):
 """
 
 
+async def generate_content_with_backoff(payload, retries: int = 2):
+    """
+    Queue/throttle Gemini calls with bounded concurrency and retry.
+    """
+    last_error = None
+    for attempt in range(retries + 1):
+        await gemini_limiter.acquire()
+        try:
+            async with _gemini_concurrency:
+                return await asyncio.to_thread(model.generate_content, payload)
+        except Exception as e:
+            last_error = e
+            if attempt < retries:
+                await asyncio.sleep(1.5 * (attempt + 1))
+    raise last_error
+
+
 async def analyze_audio(audio_bytes: bytes, mime_type: str = "audio/webm") -> dict:
     """
     Send audio to Gemini and extract structured disaster report.
@@ -66,7 +86,7 @@ async def analyze_audio(audio_bytes: bytes, mime_type: str = "audio/webm") -> di
     """
     prompt = EXTRACT_PROMPT.format(input="[Audio transcription follows]")
 
-    response = model.generate_content([
+    response = await generate_content_with_backoff([
         prompt,
         {"mime_type": mime_type, "data": audio_bytes},
     ])
@@ -80,7 +100,7 @@ async def analyze_text(text: str) -> dict:
     Used as fallback when audio processing isn't available.
     """
     prompt = EXTRACT_PROMPT.format(input=text)
-    response = model.generate_content(prompt)
+    response = await generate_content_with_backoff(prompt)
     return _parse_json_response(response.text)
 
 
@@ -109,7 +129,7 @@ async def score_priorities(reports: list[dict]) -> list[dict]:
     ])
 
     prompt = PRIORITY_PROMPT.format(reports=reports_text)
-    response = model.generate_content(prompt)
+    response = await generate_content_with_backoff(prompt)
     return _parse_json_response(response.text)
 
 

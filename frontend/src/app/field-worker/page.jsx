@@ -77,6 +77,11 @@ const statusColor = {
   resolved: "#86efac",
 };
 const severityColor = ["", "#86efac", "#a3e635", "#fbbf24", "#fb923c", "#f87171"];
+const CACHE_KEYS = {
+  reports: "fw_reports_cache_v1",
+  communityNeeds: "fw_community_needs_cache_v1",
+  needRequests: "fw_need_requests_cache_v1",
+};
 
 export default function FieldWorkerPage() {
   const [mode, setMode] = useState(null);
@@ -97,6 +102,10 @@ export default function FieldWorkerPage() {
   const [matchingNeedId, setMatchingNeedId] = useState(null);
   const [sendingRequestId, setSendingRequestId] = useState(null);
   const [needMatchesById, setNeedMatchesById] = useState({});
+  const [reportsLoading, setReportsLoading] = useState(true);
+  const [needsLoading, setNeedsLoading] = useState(true);
+  const [requestsLoading, setRequestsLoading] = useState(true);
+  const [syncError, setSyncError] = useState("");
   const [needForm, setNeedForm] = useState({
     category: "education",
     village: "",
@@ -106,6 +115,28 @@ export default function FieldWorkerPage() {
   const intervalRef = useRef(null);
   const mediaRef = useRef(null);
   const chunksRef = useRef([]);
+
+  useEffect(() => {
+    try {
+      const cachedReports = localStorage.getItem(CACHE_KEYS.reports);
+      const cachedNeeds = localStorage.getItem(CACHE_KEYS.communityNeeds);
+      const cachedRequests = localStorage.getItem(CACHE_KEYS.needRequests);
+      if (cachedReports) {
+        setReports(JSON.parse(cachedReports));
+        setReportsLoading(false);
+      }
+      if (cachedNeeds) {
+        setCommunityNeeds(JSON.parse(cachedNeeds));
+        setNeedsLoading(false);
+      }
+      if (cachedRequests) {
+        setNeedRequests(JSON.parse(cachedRequests));
+        setRequestsLoading(false);
+      }
+    } catch (e) {
+      console.error("Cache read failed:", e);
+    }
+  }, []);
 
   // Auth state
   useEffect(() => {
@@ -117,42 +148,64 @@ export default function FieldWorkerPage() {
   useEffect(() => {
     const uid = user?.uid;
     if (!uid) return;
+    setReportsLoading(true);
 
     const q = query(
       collection(db, "reports"),
       where("fieldWorkerId", "==", uid)
     );
 
-    const unsub = onSnapshot(q, (snap) => {
-      const data = snap.docs
-        .map((d) => ({
-          id: d.id,
-          ...d.data(),
-          time: d.data().createdAt?.toDate
-            ? timeAgo(d.data().createdAt.toDate())
-            : "Just now",
-          _ts: d.data().createdAt?.seconds ?? 0,
-        }))
-        .sort((a, b) => b._ts - a._ts);
-      setReports(data);
-    });
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const data = snap.docs
+          .map((d) => ({
+            id: d.id,
+            ...d.data(),
+            time: d.data().createdAt?.toDate
+              ? timeAgo(d.data().createdAt.toDate())
+              : "Just now",
+            _ts: d.data().createdAt?.seconds ?? 0,
+          }))
+          .sort((a, b) => b._ts - a._ts);
+        setReports(data);
+        setReportsLoading(false);
+        localStorage.setItem(CACHE_KEYS.reports, JSON.stringify(data));
+      },
+      (error) => {
+        console.error("Reports sync failed:", error);
+        setSyncError("Live sync is slow. Showing cached data.");
+        setReportsLoading(false);
+      }
+    );
 
     return () => unsub();
   }, [user]);
 
   // Community needs (long-term)
   useEffect(() => {
+    setNeedsLoading(true);
     const q = query(collection(db, "chronicNeeds"), orderBy("createdAt", "desc"));
-    const unsub = onSnapshot(q, (snap) => {
-      const rows = snap.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-        createdLabel: d.data().createdAt?.toDate
-          ? timeAgo(d.data().createdAt.toDate())
-          : "Just now",
-      }));
-      setCommunityNeeds(rows);
-    });
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const rows = snap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+          createdLabel: d.data().createdAt?.toDate
+            ? timeAgo(d.data().createdAt.toDate())
+            : "Just now",
+        }));
+        setCommunityNeeds(rows);
+        setNeedsLoading(false);
+        localStorage.setItem(CACHE_KEYS.communityNeeds, JSON.stringify(rows));
+      },
+      (error) => {
+        console.error("Community needs sync failed:", error);
+        setSyncError("Live sync is slow. Showing cached data.");
+        setNeedsLoading(false);
+      }
+    );
     return () => unsub();
   }, []);
 
@@ -168,16 +221,27 @@ export default function FieldWorkerPage() {
   // Request status updates for this field worker
   useEffect(() => {
     if (!user?.uid) return;
+    setRequestsLoading(true);
     const q = query(
       collection(db, "needRequests"),
       where("fieldWorkerId", "==", user.uid)
     );
-    const unsub = onSnapshot(q, (snap) => {
-      const reqs = snap.docs
-        .map((d) => ({ id: d.id, ...d.data() }))
-        .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-      setNeedRequests(reqs);
-    });
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const reqs = snap.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+        setNeedRequests(reqs);
+        setRequestsLoading(false);
+        localStorage.setItem(CACHE_KEYS.needRequests, JSON.stringify(reqs));
+      },
+      (error) => {
+        console.error("Need request sync failed:", error);
+        setSyncError("Live sync is slow. Showing cached data.");
+        setRequestsLoading(false);
+      }
+    );
     return () => unsub();
   }, [user?.uid]);
 
@@ -597,6 +661,11 @@ export default function FieldWorkerPage() {
             <div className="fw-greeting">Field Worker Dashboard</div>
             <div className="fw-title">Report an Issue</div>
           </div>
+          {syncError && (
+            <div style={{ marginBottom: 12, fontSize: "0.75rem", color: "#fbbf24" }}>
+              {syncError}
+            </div>
+          )}
 
           {/* MODE PICKER */}
           <div className="fw-mode-pick">
@@ -876,7 +945,11 @@ export default function FieldWorkerPage() {
             <div className="fw-sec-head">
               <div className="fw-sec-title">Open Needs</div>
             </div>
-            {communityNeeds.filter((n) => n.status !== "resolved").length === 0 ? (
+            {needsLoading ? (
+              <div className="fw-empty">
+                <div className="fw-empty-text">Syncing open needs...</div>
+              </div>
+            ) : communityNeeds.filter((n) => n.status !== "resolved").length === 0 ? (
               <div className="fw-empty">
                 <div className="fw-empty-text">No community needs yet.</div>
               </div>
@@ -933,7 +1006,11 @@ export default function FieldWorkerPage() {
             <div className="fw-sec-head" style={{ marginTop: 20 }}>
               <div className="fw-sec-title">My Request Updates</div>
             </div>
-            {needRequests.length === 0 ? (
+            {requestsLoading ? (
+              <div className="fw-empty">
+                <div className="fw-empty-text">Syncing request updates...</div>
+              </div>
+            ) : needRequests.length === 0 ? (
               <div className="fw-empty">
                 <div className="fw-empty-text">No outgoing requests yet.</div>
               </div>
@@ -964,7 +1041,11 @@ export default function FieldWorkerPage() {
             <div className="fw-sec-head">
               <div className="fw-sec-title">My Recent Reports</div>
             </div>
-            {reports.length === 0 ? (
+            {reportsLoading ? (
+              <div className="fw-empty">
+                <div className="fw-empty-text">Syncing recent reports...</div>
+              </div>
+            ) : reports.length === 0 ? (
               <div className="fw-empty">
                 <div className="fw-empty-icon">📋</div>
                 <div className="fw-empty-text">
