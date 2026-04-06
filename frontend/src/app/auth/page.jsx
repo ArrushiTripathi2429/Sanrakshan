@@ -92,6 +92,12 @@ export default function AuthPage() {
         photo: user.photoURL || null,
         role: role,
         available: true,
+        skills: role === "volunteer" ? ["General Support"] : [],
+        languages: ["Hindi"],
+        availabilitySchedule: "Weekdays",
+        reliabilityScore: 70,
+        resolvedTasks: 0,
+        totalAssigned: 0,
         uid: user.uid,
         createdAt: new Date(),
       });

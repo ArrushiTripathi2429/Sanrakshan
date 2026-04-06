@@ -15,12 +15,13 @@ const categoryColor = {
   water: "#38bdf8", other: "#94a3b8",
 };
 const categoryLabel = {
-  flood: "🌊 Flood", medical: "🏥 Medical", road: "🛣️ Road",
-  food: "🌾 Food", education: "📚 Education", electricity: "⚡ Electricity",
-  water: "💧 Water", other: "📋 Other",
+  flood: " Flood", medical: " Medical", road: " Road",
+  food: "Food", education: " Education", electricity: "Electricity",
+  water: " Water", other: " Other",
 };
 const severityLabel = ["", "Low", "Low-Med", "Medium", "High", "Critical"];
 const severityColor = ["", "#86efac", "#a3e635", "#fbbf24", "#fb923c", "#f87171"];
+const VOLUNTEER_SKILLS = ["Teaching", "Medical", "Legal Aid", "Agriculture", "Construction", "Counseling", "Water", "Logistics"];
 
 function timeAgo(date) {
   if (!date) return "Just now";
@@ -31,7 +32,7 @@ function timeAgo(date) {
   return date.toLocaleDateString("en-IN");
 }
 
-// ── Find village coords from name ─────────────────────────────────────────────
+// Find village coords from name 
 function findVillageCoords(nameOrLocation) {
   if (!nameOrLocation) return null;
   const lower = nameOrLocation.toLowerCase();
@@ -41,7 +42,7 @@ function findVillageCoords(nameOrLocation) {
   return match ? { lat: match.lat, lng: match.lng, name: match.name } : null;
 }
 
-// ── Task Map Component ────────────────────────────────────────────────────────
+//  Task Map Component
 function TaskMap({ village, location }) {
   const mapRef    = useRef(null);
   const mapInst   = useRef(null);
@@ -197,41 +198,97 @@ export default function VolunteerPage() {
   const [filter, setFilter] = useState("active");
   const [completing, setCompleting] = useState(false);
   const [available, setAvailable] = useState(true);
+  const [incomingRequests, setIncomingRequests] = useState([]);
+  const [profileBusy, setProfileBusy] = useState(false);
+  const [profile, setProfile] = useState({
+    skills: [],
+    languages: "",
+    availabilitySchedule: "",
+  });
   const user = auth.currentUser;
 
-  // ── Auth state ────────────────────────────────────────────────────────────
+  //  Auth state 
   const [currentUser, setCurrentUser] = useState(auth.currentUser);
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, u => setCurrentUser(u));
     return () => unsub();
   }, []);
 
-  // ── Real-time listener: tasks assigned to this volunteer ──────────────────
+  // Load volunteer profile data
+  useEffect(() => {
+    if (!currentUser?.uid) return;
+    const unsub = onSnapshot(
+      doc(db, "users", currentUser.uid),
+      (snap) => {
+        const data = snap.data() || {};
+        setAvailable(data.available !== false);
+        setProfile({
+          skills: Array.isArray(data.skills) ? data.skills : [],
+          languages: Array.isArray(data.languages) ? data.languages.join(", ") : (data.languages || ""),
+          availabilitySchedule: data.availabilitySchedule || "",
+        });
+      },
+      (error) => {
+        console.error("Unable to read volunteer profile:", error);
+      }
+    );
+    return () => unsub();
+  }, [currentUser?.uid]);
+
+  // ── Real-time listener: tasks assigned to this volunteer
   useEffect(() => {
     const q = query(
       collection(db, "reports"),
       where("assigned", "==", true)
     );
 
-    const unsub = onSnapshot(q, (snap) => {
-      const userName = currentUser?.displayName || "";
-      const docs = snap.docs
-        .map((d) => ({
-          id: d.id,
-          ...d.data(),
-          assignedAt: d.data().assignedAt?.toDate
-            ? timeAgo(d.data().assignedAt.toDate())
-            : d.data().createdAt?.toDate
-            ? timeAgo(d.data().createdAt.toDate())
-            : "Just now",
-        }))
-        .filter((d) => !currentUser?.displayName || d.assignedTo === currentUser.displayName);
-      setTasks(docs);
-      setLoading(false);
-    });
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const docs = snap.docs
+          .map((d) => ({
+            id: d.id,
+            ...d.data(),
+            assignedAt: d.data().assignedAt?.toDate
+              ? timeAgo(d.data().assignedAt.toDate())
+              : d.data().createdAt?.toDate
+              ? timeAgo(d.data().createdAt.toDate())
+              : "Just now",
+          }))
+          .filter((d) => !currentUser?.displayName || d.assignedTo === currentUser.displayName);
+        setTasks(docs);
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Unable to read assigned tasks:", error);
+        setLoading(false);
+      }
+    );
 
     return () => unsub();
   }, [currentUser]);
+
+  // Incoming chronic-need requests for this volunteer
+  useEffect(() => {
+    if (!currentUser?.uid) return;
+    const q = query(
+      collection(db, "needRequests"),
+      where("volunteerId", "==", currentUser.uid)
+    );
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const docs = snap.docs
+          .map((d) => ({ id: d.id, ...d.data() }))
+          .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+        setIncomingRequests(docs);
+      },
+      (error) => {
+        console.error("Unable to read need requests:", error);
+      }
+    );
+    return () => unsub();
+  }, [currentUser?.uid]);
 
   const filtered = tasks.filter((t) =>
     filter === "all" ? true : filter === "active" ? t.status === "assigned" : t.status === "resolved"
@@ -247,6 +304,55 @@ export default function VolunteerPage() {
       try {
         await updateDoc(doc(db, "users", currentUser.uid), { available: next });
       } catch (e) { console.error(e); }
+    }
+  };
+
+  const toggleSkill = (skill) => {
+    setProfile((prev) => ({
+      ...prev,
+      skills: prev.skills.includes(skill)
+        ? prev.skills.filter((s) => s !== skill)
+        : [...prev.skills, skill],
+    }));
+  };
+
+  const saveProfile = async () => {
+    if (!currentUser?.uid) return;
+    setProfileBusy(true);
+    try {
+      const languages = profile.languages
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean);
+      await updateDoc(doc(db, "users", currentUser.uid), {
+        skills: profile.skills,
+        languages,
+        availabilitySchedule: profile.availabilitySchedule || "Flexible",
+      });
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setProfileBusy(false);
+    }
+  };
+
+  const handleRequestDecision = async (req, decision) => {
+    try {
+      await updateDoc(doc(db, "needRequests", req.id), {
+        status: decision,
+        respondedAt: serverTimestamp(),
+        volunteerName: currentUser?.displayName || "Volunteer",
+      });
+      if (req.needId && decision === "accepted") {
+        await updateDoc(doc(db, "chronicNeeds", req.needId), {
+          status: "in_progress",
+          assignedVolunteerId: currentUser?.uid,
+          assignedVolunteerName: currentUser?.displayName || "Volunteer",
+          assignedAt: serverTimestamp(),
+        });
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -397,6 +503,76 @@ export default function VolunteerPage() {
               <div className="vl-stat-num" style={{ color: "#67e8f9" }}>{tasks.length}</div>
               <div className="vl-stat-label">Total Assigned</div>
             </div>
+          </div>
+
+          <div className="vl-task" style={{ marginBottom: 12, cursor: "default" }}>
+            <div className="vl-task-title" style={{ marginBottom: 10 }}>Skill Profile</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+              {VOLUNTEER_SKILLS.map((s) => {
+                const selected = profile.skills.includes(s);
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => toggleSkill(s)}
+                    style={{
+                      border: selected ? "1px solid rgba(251,191,36,0.35)" : "1px solid rgba(255,255,255,0.08)",
+                      background: selected ? "rgba(251,191,36,0.1)" : "rgba(255,255,255,0.02)",
+                      color: selected ? "#fbbf24" : "rgba(226,237,228,0.55)",
+                      borderRadius: 999,
+                      padding: "5px 10px",
+                      cursor: "pointer",
+                      fontSize: "0.72rem",
+                    }}
+                  >
+                    {s}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
+              <input
+                value={profile.languages}
+                onChange={(e) => setProfile((p) => ({ ...p, languages: e.target.value }))}
+                placeholder="Languages (comma separated)"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "8px 10px", color: "#f0f7f1" }}
+              />
+              <input
+                value={profile.availabilitySchedule}
+                onChange={(e) => setProfile((p) => ({ ...p, availabilitySchedule: e.target.value }))}
+                placeholder="Availability (e.g. weekends)"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "8px 10px", color: "#f0f7f1" }}
+              />
+            </div>
+            <button className="vl-btn-secondary" onClick={saveProfile} disabled={profileBusy}>
+              {profileBusy ? "Saving..." : "Save Profile"}
+            </button>
+          </div>
+
+          <div className="vl-task" style={{ marginBottom: 18, cursor: "default" }}>
+            <div className="vl-task-title" style={{ marginBottom: 8 }}>Need Requests</div>
+            {incomingRequests.length === 0 ? (
+              <div style={{ fontSize: "0.78rem", color: "rgba(226,237,228,0.35)" }}>
+                No requests yet.
+              </div>
+            ) : (
+              incomingRequests.map((req) => (
+                <div key={req.id} style={{ padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                  <div style={{ fontSize: "0.84rem", color: "#f0f7f1", marginBottom: 4 }}>{req.needCategory || "Need"} · {req.village}</div>
+                  <div style={{ fontSize: "0.76rem", color: "rgba(226,237,228,0.45)", marginBottom: 8 }}>{req.needDescription}</div>
+                  {req.status === "pending" ? (
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button className="vl-btn-primary" onClick={() => handleRequestDecision(req, "accepted")}>Accept</button>
+                      <button className="vl-btn-secondary" onClick={() => handleRequestDecision(req, "declined")}>Decline</button>
+                    </div>
+                  ) : (
+                    <span style={{ fontSize: "0.7rem", color: req.status === "accepted" ? "#86efac" : "#f87171" }}>
+                      {req.status === "accepted" ? "Accepted" : "Declined"}
+                    </span>
+                  )}
+                </div>
+              ))
+            )}
           </div>
 
           <div className="vl-tabs">

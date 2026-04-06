@@ -82,7 +82,7 @@ function ChartsSection({ issues }) {
   );
 }
 
-// ── Weather + Early Warning Widget ───────────────────────────────────────────
+// weather
 function WeatherAndAlerts() {
   const [weather, setWeather] = useState(null);
   const [newsAlerts, setNewsAlerts] = useState([]);
@@ -201,6 +201,25 @@ export default function AdminPage() {
   const [chronicForm,setChronicForm]=useState({village:"",category:"education",description:"",_open:false});
   const [addingChronic,setAddingChronic]=useState(false);
 
+  const addMarker = (L, map, village) => {
+    const hasIssues = (village.issues || 0) > 0;
+    const marker = L.circleMarker([village.lat, village.lng], {
+      radius: hasIssues ? 8 : 6,
+      color: hasIssues ? "#ef4444" : "#22c55e",
+      fillColor: hasIssues ? "#ef4444" : "#22c55e",
+      fillOpacity: hasIssues ? 0.6 : 0.35,
+      weight: 2,
+    }).addTo(map);
+
+    marker.bindPopup(`
+      <div style="min-width:160px;padding:4px 2px;">
+        <div style="font-weight:700;margin-bottom:4px;">${village.name}</div>
+        <div style="font-size:12px;opacity:0.8;">Active issues: ${village.issues || 0}</div>
+      </div>
+    `);
+    markersRef.current[village.id] = marker;
+  };
+
   // volunteers
   useEffect(()=>{
     const unsub=onSnapshot(query(collection(db,"users"),where("role","==","volunteer")),snap=>{
@@ -210,6 +229,17 @@ export default function AdminPage() {
     });
     return ()=>unsub();
   },[]);
+
+  // Refresh map markers when village issue counts change
+  useEffect(() => {
+    const L = leafletRef.current;
+    const map = mapInstanceRef.current;
+    if (!L || !map) return;
+
+    Object.values(markersRef.current).forEach((marker) => marker.remove());
+    markersRef.current = {};
+    villages.forEach((v) => addMarker(L, map, v));
+  }, [villages]);
 
   // chronic needs
   useEffect(()=>{

@@ -1,7 +1,7 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useRef } from "react";
-import { auth, db } from "@/lib/firebase"; 
+import { auth, db } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import VILLAGES_DATA from "@/data/villages";
 import {
@@ -12,9 +12,11 @@ import {
   orderBy,
   onSnapshot,
   serverTimestamp,
+  updateDoc,
+  doc,
 } from "firebase/firestore";
 
-// Nearest village from GPS 
+// Nearest village from GPS
 function nearestVillage(lat, lng) {
   let best = null,
     bestDist = Infinity;
@@ -29,14 +31,23 @@ function nearestVillage(lat, lng) {
 }
 
 const CATEGORIES = [
-  { value: "flood", label: "🌊 Flood / Water Logging" },
-  { value: "medical", label: "🏥 Medical Emergency" },
-  { value: "road", label: "🛣️ Road / Infrastructure" },
-  { value: "food", label: "🍱 Food / Ration Shortage" },
-  { value: "education", label: "📚 Education Support" },
-  { value: "electricity", label: "⚡ Electricity / Power" },
-  { value: "water", label: "💧 Drinking Water" },
-  { value: "other", label: "📌 Other" },
+  { value: "flood", label: " Flood / Water Logging" },
+  { value: "medical", label: " Medical Emergency" },
+  { value: "road", label: " Road / Infrastructure" },
+  { value: "food", label: " Food / Ration Shortage" },
+  { value: "education", label: "Education Support" },
+  { value: "electricity", label: " Electricity / Power" },
+  { value: "water", label: " Drinking Water" },
+  { value: "other", label: " Other" },
+];
+
+const NEED_CATEGORIES = [
+  { value: "education", label: "Education" },
+  { value: "healthcare", label: "Healthcare" },
+  { value: "livelihood", label: "Livelihood" },
+  { value: "infrastructure", label: "Infrastructure" },
+  { value: "women_empowerment", label: "Women Empowerment" },
+  { value: "other", label: "Other" },
 ];
 
 const emptyForm = {
@@ -74,49 +85,103 @@ export default function FieldWorkerPage() {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [user, setUser] = useState(null);
-  const [gpsStatus, setGpsStatus] = useState("idle"); 
+  const [gpsStatus, setGpsStatus] = useState("idle");
   const [recording, setRecording] = useState(false);
   const [recorded, setRecorded] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [parsed, setParsed] = useState(null);
   const [seconds, setSeconds] = useState(0);
+  const [communityNeeds, setCommunityNeeds] = useState([]);
+  const [needRequests, setNeedRequests] = useState([]);
+  const [volunteers, setVolunteers] = useState([]);
+  const [matchingNeedId, setMatchingNeedId] = useState(null);
+  const [sendingRequestId, setSendingRequestId] = useState(null);
+  const [needMatchesById, setNeedMatchesById] = useState({});
+  const [needForm, setNeedForm] = useState({
+    category: "education",
+    village: "",
+    description: "",
+  });
 
   const intervalRef = useRef(null);
   const mediaRef = useRef(null);
   const chunksRef = useRef([]);
 
-  //  Auth state
+  // Auth state
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setUser(u));
     return () => unsub();
   }, []);
 
-  //  Fetch real-time reports from Firestore 
+  // Fetch real-time reports from Firestore
   useEffect(() => {
     const uid = user?.uid;
     if (!uid) return;
 
     const q = query(
       collection(db, "reports"),
-      where("fieldWorkerId", "==", uid),
-      orderBy("createdAt", "desc")
+      where("fieldWorkerId", "==", uid)
     );
 
     const unsub = onSnapshot(q, (snap) => {
-      const data = snap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        time: doc.data().createdAt?.toDate
-          ? timeAgo(doc.data().createdAt.toDate())
-          : "Just now",
-      }));
+      const data = snap.docs
+        .map((d) => ({
+          id: d.id,
+          ...d.data(),
+          time: d.data().createdAt?.toDate
+            ? timeAgo(d.data().createdAt.toDate())
+            : "Just now",
+          _ts: d.data().createdAt?.seconds ?? 0,
+        }))
+        .sort((a, b) => b._ts - a._ts);
       setReports(data);
     });
 
     return () => unsub();
   }, [user]);
 
-  //  Recording timer 
+  // Community needs (long-term)
+  useEffect(() => {
+    const q = query(collection(db, "chronicNeeds"), orderBy("createdAt", "desc"));
+    const unsub = onSnapshot(q, (snap) => {
+      const rows = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+        createdLabel: d.data().createdAt?.toDate
+          ? timeAgo(d.data().createdAt.toDate())
+          : "Just now",
+      }));
+      setCommunityNeeds(rows);
+    });
+    return () => unsub();
+  }, []);
+
+  // Volunteer pool for matching
+  useEffect(() => {
+    const q = query(collection(db, "users"), where("role", "==", "volunteer"));
+    const unsub = onSnapshot(q, (snap) => {
+      setVolunteers(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+    return () => unsub();
+  }, []);
+
+  // Request status updates for this field worker
+  useEffect(() => {
+    if (!user?.uid) return;
+    const q = query(
+      collection(db, "needRequests"),
+      where("fieldWorkerId", "==", user.uid)
+    );
+    const unsub = onSnapshot(q, (snap) => {
+      const reqs = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      setNeedRequests(reqs);
+    });
+    return () => unsub();
+  }, [user?.uid]);
+
+  // Recording timer
   useEffect(() => {
     if (recording) {
       intervalRef.current = setInterval(() => setSeconds((s) => s + 1), 1000);
@@ -127,7 +192,7 @@ export default function FieldWorkerPage() {
     return () => clearInterval(intervalRef.current);
   }, [recording]);
 
-  //  Auto GPS detection
+  // Auto GPS detection
   const detectLocation = () => {
     if (!navigator.geolocation) return;
     setGpsStatus("detecting");
@@ -145,7 +210,8 @@ export default function FieldWorkerPage() {
       { timeout: 6000 }
     );
   };
-  //  Save report to Firestore
+
+  // Save report to Firestore
   const saveReport = async (data) => {
     setSubmitting(true);
     try {
@@ -171,7 +237,7 @@ export default function FieldWorkerPage() {
     }
   };
 
-  //  Recording
+  // Recording
   const startRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -247,8 +313,7 @@ export default function FieldWorkerPage() {
           location: "",
           severity: 1,
           affected: "",
-          description:
-            "Voice processing failed. Please use the form instead.",
+          description: "Voice processing failed. Please use the form instead.",
         });
       }
     } finally {
@@ -282,12 +347,99 @@ export default function FieldWorkerPage() {
     saveReport({ ...parsed });
   };
 
+  const createCommunityNeed = async () => {
+    if (!needForm.village || !needForm.description || !user?.uid) return;
+    try {
+      await addDoc(collection(db, "chronicNeeds"), {
+        category: needForm.category,
+        village: needForm.village,
+        description: needForm.description,
+        status: "open",
+        createdAt: serverTimestamp(),
+        fieldWorkerId: user.uid,
+        fieldWorkerName: user.displayName || "Field Worker",
+      });
+      setNeedForm({ category: "education", village: "", description: "" });
+    } catch (e) {
+      console.error("Failed to create community need:", e);
+    }
+  };
+
+  const getNeedMatches = async (need) => {
+    const village = VILLAGES_DATA.find(
+      (v) => v.name.toLowerCase() === String(need.village || "").toLowerCase()
+    );
+    if (!village) return;
+    setMatchingNeedId(need.id);
+    try {
+      const res = await fetch("http://localhost:8000/api/volunteer-match", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          report_id: need.id,
+          title: `Chronic need: ${need.category}`,
+          description: need.description,
+          category: need.category || "other",
+          village_lat: village.lat,
+          village_lng: village.lng,
+          volunteers: volunteers.map((v) => ({
+            id: v.uid || v.id,
+            name: v.name || "Volunteer",
+            skills: Array.isArray(v.skills) ? v.skills : [],
+            lat: v.lat ?? null,
+            lng: v.lng ?? null,
+            resolved_tasks: v.resolvedTasks || 0,
+            total_assigned: v.totalAssigned || 0,
+            available: v.available !== false,
+          })),
+        }),
+      });
+      if (!res.ok) throw new Error(`match failed ${res.status}`);
+      const json = await res.json();
+      setNeedMatchesById((prev) => ({ ...prev, [need.id]: json.matches || [] }));
+    } catch (e) {
+      console.error("Matching failed:", e);
+      setNeedMatchesById((prev) => ({ ...prev, [need.id]: [] }));
+    } finally {
+      setMatchingNeedId(null);
+    }
+  };
+
+  const sendNeedRequest = async (need, match) => {
+    if (!user?.uid) return;
+    setSendingRequestId(`${need.id}:${match.volunteer_id}`);
+    try {
+      await addDoc(collection(db, "needRequests"), {
+        needId: need.id,
+        needCategory: need.category || "other",
+        needDescription: need.description || "",
+        village: need.village || "",
+        fieldWorkerId: user.uid,
+        fieldWorkerName: user.displayName || "Field Worker",
+        volunteerId: match.volunteer_id,
+        volunteerName: match.volunteer_name,
+        score: match.composite_score,
+        status: "pending",
+        createdAt: serverTimestamp(),
+      });
+      await updateDoc(doc(db, "chronicNeeds", need.id), {
+        lastRequestedVolunteerId: match.volunteer_id,
+        lastRequestedVolunteerName: match.volunteer_name,
+        updatedAt: serverTimestamp(),
+      });
+    } catch (e) {
+      console.error("Failed to send need request:", e);
+    } finally {
+      setSendingRequestId(null);
+    }
+  };
+
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap');
+        :root { --font-heading: var(--font-fraunces); --font-body: var(--font-outfit); }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body { background: #080e0a; color: #e8f5e9; font-family: 'DM Sans', sans-serif; min-height: 100vh; }
+        html, body { background: #080e0a; color: #e8f5e9; font-family: var(--font-body), sans-serif; min-height: 100vh; }
 
         .fw-wrap { min-height: 100vh; display: grid; grid-template-columns: 240px 1fr; }
 
@@ -298,9 +450,9 @@ export default function FieldWorkerPage() {
           display: flex; flex-direction: column; gap: 6px;
           position: sticky; top: 0; height: 100vh;
         }
-        .fw-logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1rem; color: #86efac; margin-bottom: 28px; padding: 0 8px; }
+        .fw-logo { font-family: var(--font-heading), serif; font-weight: 800; font-size: 1rem; color: #86efac; margin-bottom: 28px; padding: 0 8px; }
         .fw-logo span { opacity: 0.35; color: #e8f5e9; }
-        .fw-nav { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; font-size: 0.85rem; color: rgba(232,245,233,0.4); cursor: pointer; transition: all 0.2s; border: none; background: none; width: 100%; text-align: left; font-family: 'DM Sans', sans-serif; }
+        .fw-nav { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; font-size: 0.85rem; color: rgba(232,245,233,0.4); cursor: pointer; transition: all 0.2s; border: none; background: none; width: 100%; text-align: left; font-family: var(--font-body), sans-serif; }
         .fw-nav:hover { color: #e8f5e9; background: rgba(255,255,255,0.04); }
         .fw-nav.active { color: #86efac; background: rgba(134,239,172,0.08); }
         .fw-sidebar-footer { margin-top: auto; padding-top: 16px; border-top: 1px solid rgba(134,239,172,0.07); }
@@ -312,7 +464,7 @@ export default function FieldWorkerPage() {
         .fw-main { padding: 36px 40px; overflow-y: auto; }
         .fw-header { margin-bottom: 32px; opacity: 0; animation: fwUp 0.5s ease 0.1s forwards; }
         .fw-greeting { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.15em; color: rgba(232,245,233,0.25); margin-bottom: 4px; }
-        .fw-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.5rem; letter-spacing: -0.02em; color: #f0fdf4; }
+        .fw-title { font-family: var(--font-heading), serif; font-weight: 700; font-size: 1.5rem; letter-spacing: -0.02em; color: #f0fdf4; }
 
         .fw-mode-pick { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 28px; opacity: 0; animation: fwUp 0.5s ease 0.15s forwards; }
         .fw-mode-card { border-radius: 16px; padding: 28px 24px; cursor: pointer; border: 1px solid rgba(255,255,255,0.07); background: rgba(255,255,255,0.02); transition: all 0.22s ease; text-align: left; }
@@ -322,11 +474,11 @@ export default function FieldWorkerPage() {
         .fw-mode-card.active-voice { border-color: rgba(134,239,172,0.3); background: rgba(134,239,172,0.05); }
         .fw-mode-card.active-form { border-color: rgba(103,232,249,0.3); background: rgba(103,232,249,0.05); }
         .fw-mode-icon { font-size: 1.8rem; margin-bottom: 12px; display: block; }
-        .fw-mode-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1rem; color: #f0fdf4; margin-bottom: 6px; }
+        .fw-mode-title { font-family: var(--font-heading), serif; font-weight: 700; font-size: 1rem; color: #f0fdf4; margin-bottom: 6px; }
         .fw-mode-desc { font-size: 0.8rem; color: rgba(232,245,233,0.38); font-weight: 300; line-height: 1.5; }
 
         .fw-panel { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.07); border-radius: 18px; padding: 32px; margin-bottom: 28px; opacity: 0; animation: fwUp 0.4s ease forwards; }
-        .fw-panel-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.05rem; color: #f0fdf4; margin-bottom: 4px; }
+        .fw-panel-title { font-family: var(--font-heading), serif; font-weight: 700; font-size: 1.05rem; color: #f0fdf4; margin-bottom: 4px; }
         .fw-panel-sub { font-size: 0.82rem; color: rgba(232,245,233,0.38); font-weight: 300; margin-bottom: 28px; }
 
         .fw-voice-center { display: flex; flex-direction: column; align-items: center; gap: 18px; }
@@ -340,7 +492,7 @@ export default function FieldWorkerPage() {
         .fw-mic-btn.done { background: linear-gradient(135deg, #67e8f9, #22d3ee); box-shadow: 0 0 28px rgba(103,232,249,0.22); }
         .fw-mic-btn:hover { transform: scale(1.05); }
         @keyframes fwPulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }
-        .fw-timer { font-family: 'Syne', sans-serif; font-weight: 600; font-size: 1rem; color: #f87171; letter-spacing: 0.1em; }
+        .fw-timer { font-family: var(--font-heading), serif; font-weight: 600; font-size: 1rem; color: #f87171; letter-spacing: 0.1em; }
         .fw-mic-hint { font-size: 0.78rem; color: rgba(232,245,233,0.3); text-align: center; font-style: italic; }
 
         .fw-spinner { width: 36px; height: 36px; border: 2px solid rgba(134,239,172,0.12); border-top-color: #86efac; border-radius: 50%; animation: fwSpin 0.8s linear infinite; }
@@ -352,7 +504,7 @@ export default function FieldWorkerPage() {
         .fw-parsed-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
         .fw-parsed-badge { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.12em; color: #86efac; display: flex; align-items: center; gap: 5px; }
         .fw-parsed-badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: #86efac; display: inline-block; }
-        .fw-retry { font-size: 0.7rem; color: rgba(232,245,233,0.3); background: none; border: 1px solid rgba(255,255,255,0.07); padding: 4px 10px; border-radius: 6px; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.2s; }
+        .fw-retry { font-size: 0.7rem; color: rgba(232,245,233,0.3); background: none; border: 1px solid rgba(255,255,255,0.07); padding: 4px 10px; border-radius: 6px; cursor: pointer; font-family: var(--font-body), sans-serif; transition: all 0.2s; }
         .fw-retry:hover { color: #e8f5e9; }
         .fw-pgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
         .fw-pfield { display: flex; flex-direction: column; gap: 3px; }
@@ -365,14 +517,14 @@ export default function FieldWorkerPage() {
         .fw-form { display: flex; flex-direction: column; gap: 18px; }
         .fw-field-group { display: flex; flex-direction: column; gap: 7px; }
         .fw-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.12em; color: rgba(232,245,233,0.35); }
-        .fw-input, .fw-select, .fw-textarea { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09); border-radius: 10px; padding: 12px 14px; color: #f0fdf4; font-family: 'DM Sans', sans-serif; font-size: 0.875rem; transition: border-color 0.2s ease; outline: none; width: 100%; }
+        .fw-input, .fw-select, .fw-textarea { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.09); border-radius: 10px; padding: 12px 14px; color: #f0fdf4; font-family: var(--font-body), sans-serif; font-size: 0.875rem; transition: border-color 0.2s ease; outline: none; width: 100%; }
         .fw-input:focus, .fw-select:focus, .fw-textarea:focus { border-color: rgba(134,239,172,0.35); }
         .fw-select option { background: #0f1a12; }
         .fw-textarea { resize: vertical; min-height: 110px; line-height: 1.6; }
         .fw-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 
         .fw-severity-row { display: flex; gap: 8px; }
-        .fw-sev-btn { flex: 1; padding: 9px 0; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); color: rgba(232,245,233,0.4); font-family: 'Syne', sans-serif; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .fw-sev-btn { flex: 1; padding: 9px 0; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); color: rgba(232,245,233,0.4); font-family: var(--font-heading), serif; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
         .fw-sev-btn:hover { border-color: rgba(255,255,255,0.2); color: #e8f5e9; }
         .fw-sev-btn.sel { color: #080e0a; border-color: transparent; }
 
@@ -380,19 +532,19 @@ export default function FieldWorkerPage() {
         .fw-photo-label:hover { border-color: rgba(134,239,172,0.25); color: #86efac; }
         .fw-photo-label input { display: none; }
 
-        .fw-submit { width: 100%; padding: 14px; background: linear-gradient(135deg, #86efac, #4ade80); border: none; border-radius: 12px; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.88rem; color: #080e0a; cursor: pointer; letter-spacing: 0.04em; transition: opacity 0.2s, transform 0.2s; margin-top: 4px; }
+        .fw-submit { width: 100%; padding: 14px; background: linear-gradient(135deg, #86efac, #4ade80); border: none; border-radius: 12px; font-family: var(--font-heading), serif; font-weight: 700; font-size: 0.88rem; color: #080e0a; cursor: pointer; letter-spacing: 0.04em; transition: opacity 0.2s, transform 0.2s; margin-top: 4px; }
         .fw-submit:hover { opacity: 0.9; transform: translateY(-1px); }
         .fw-submit:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
         .fw-submit-cyan { background: linear-gradient(135deg, #67e8f9, #22d3ee); }
 
         .fw-success { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 40px 20px; text-align: center; }
         .fw-success-icon { font-size: 2.5rem; }
-        .fw-success-text { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 1.1rem; color: #86efac; }
+        .fw-success-text { font-family: var(--font-heading), serif; font-weight: 700; font-size: 1.1rem; color: #86efac; }
         .fw-success-sub { font-size: 0.82rem; color: rgba(232,245,233,0.4); }
 
         .fw-reports { opacity: 0; animation: fwUp 0.5s ease 0.25s forwards; }
         .fw-sec-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
-        .fw-sec-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.95rem; color: #f0fdf4; }
+        .fw-sec-title { font-family: var(--font-heading), serif; font-weight: 700; font-size: 0.95rem; color: #f0fdf4; }
         .fw-empty { padding: 32px; text-align: center; border: 1px dashed rgba(255,255,255,0.07); border-radius: 14px; }
         .fw-empty-icon { font-size: 1.8rem; margin-bottom: 10px; }
         .fw-empty-text { font-size: 0.82rem; color: rgba(232,245,233,0.25); }
@@ -406,7 +558,7 @@ export default function FieldWorkerPage() {
         .fw-badge { font-size: 0.62rem; padding: 3px 8px; border-radius: 100px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; }
         .fw-rr-time { font-size: 0.68rem; color: rgba(232,245,233,0.22); }
 
-        .fw-gps-btn { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: rgba(134,239,172,0.1); border: 1px solid rgba(134,239,172,0.2); border-radius: 6px; padding: 3px 10px; cursor: pointer; font-size: 0.68rem; color: #86efac; font-family: 'DM Sans', sans-serif; display: flex; align-items: center; gap: 4px; transition: background 0.2s; }
+        .fw-gps-btn { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: rgba(134,239,172,0.1); border: 1px solid rgba(134,239,172,0.2); border-radius: 6px; padding: 3px 10px; cursor: pointer; font-size: 0.68rem; color: #86efac; font-family: var(--font-body), sans-serif; display: flex; align-items: center; gap: 4px; transition: background 0.2s; }
         .fw-gps-btn:hover { background: rgba(134,239,172,0.18); }
 
         @media (max-width: 768px) {
@@ -425,9 +577,9 @@ export default function FieldWorkerPage() {
         {/* SIDEBAR */}
         <aside className="fw-sidebar">
           <div className="fw-logo">Sanrakshan <span>/ Field</span></div>
-          <button className="fw-nav active"> My Reports</button>
-          <button className="fw-nav"> Map View</button>
-          <button className="fw-nav"> Alerts</button>
+          <button className="fw-nav active">My Reports</button>
+          <button className="fw-nav">Map View</button>
+          <button className="fw-nav">Alerts</button>
           <div className="fw-sidebar-footer">
             <div className="fw-user">
               <div className="fw-avatar">{user?.displayName?.[0] || "F"}</div>
@@ -454,7 +606,7 @@ export default function FieldWorkerPage() {
             >
               <span className="fw-mode-icon">🎙️</span>
               <div className="fw-mode-title">Voice Report</div>
-              <div className="fw-mode-desc">बोलिए, हम सुन रहे हैं — Record in Hindi or English. AI extracts all details automatically.</div>
+              <div className="fw-mode-desc">बोलिए, हम सुन रहे हैं – Record in Hindi or English. AI extracts all details automatically.</div>
             </div>
             <div
               className={`fw-mode-card form-card ${mode === "form" ? "active-form" : ""}`}
@@ -462,7 +614,7 @@ export default function FieldWorkerPage() {
             >
               <span className="fw-mode-icon">📝</span>
               <div className="fw-mode-title">Fill a Form</div>
-              <div className="fw-mode-desc">For literate users — describe the issue in detail with category, location and photos.</div>
+              <div className="fw-mode-desc">For literate users – describe the issue in detail with category, location and photos.</div>
             </div>
           </div>
 
@@ -582,7 +734,6 @@ export default function FieldWorkerPage() {
                   </div>
 
                   <div className="fw-form-grid">
-                    {/* Location with GPS button */}
                     <div className="fw-field-group">
                       <label className="fw-label">Location / Village *</label>
                       <div style={{ position: "relative" }}>
@@ -609,7 +760,7 @@ export default function FieldWorkerPage() {
                       )}
                       {gpsStatus === "error" && (
                         <div style={{ fontSize: "0.68rem", color: "#f87171", marginTop: 4 }}>
-                          GPS unavailable — please type location
+                          GPS unavailable – please type location
                         </div>
                       )}
                     </div>
@@ -673,6 +824,140 @@ export default function FieldWorkerPage() {
               )}
             </div>
           )}
+
+          {/* COMMUNITY NEEDS PANEL */}
+          <div className="fw-panel">
+            <div className="fw-panel-title">Community Needs Registry</div>
+            <div className="fw-panel-sub">Track long-term needs and coordinate volunteers in real time.</div>
+
+            <div className="fw-form-grid" style={{ marginBottom: 12 }}>
+              <div className="fw-field-group">
+                <label className="fw-label">Need Category</label>
+                <select
+                  className="fw-select"
+                  value={needForm.category}
+                  onChange={(e) => setNeedForm((p) => ({ ...p, category: e.target.value }))}
+                >
+                  {NEED_CATEGORIES.map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="fw-field-group">
+                <label className="fw-label">Village</label>
+                <input
+                  className="fw-input"
+                  placeholder="Village name"
+                  value={needForm.village}
+                  onChange={(e) => setNeedForm((p) => ({ ...p, village: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="fw-field-group" style={{ marginBottom: 16 }}>
+              <label className="fw-label">Need Description</label>
+              <textarea
+                className="fw-textarea"
+                placeholder="Describe the chronic need"
+                value={needForm.description}
+                onChange={(e) => setNeedForm((p) => ({ ...p, description: e.target.value }))}
+              />
+            </div>
+
+            <button
+              className="fw-submit"
+              style={{ marginBottom: 20 }}
+              onClick={createCommunityNeed}
+              disabled={!needForm.village || !needForm.description}
+            >
+              Add Community Need
+            </button>
+
+            <div className="fw-sec-head">
+              <div className="fw-sec-title">Open Needs</div>
+            </div>
+            {communityNeeds.filter((n) => n.status !== "resolved").length === 0 ? (
+              <div className="fw-empty">
+                <div className="fw-empty-text">No community needs yet.</div>
+              </div>
+            ) : (
+              communityNeeds
+                .filter((n) => n.status !== "resolved")
+                .slice(0, 6)
+                .map((need) => (
+                  <div key={need.id} className="fw-report-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 10 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                      <div>
+                        <div className="fw-rr-title">{need.category} · {need.village}</div>
+                        <div className="fw-rr-loc">{need.description}</div>
+                      </div>
+                      <div style={{ fontSize: "0.7rem", color: "rgba(232,245,233,0.3)" }}>{need.createdLabel}</div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      <button
+                        className="fw-retry"
+                        onClick={() => getNeedMatches(need)}
+                        disabled={matchingNeedId === need.id}
+                      >
+                        {matchingNeedId === need.id ? "Matching..." : "Get Volunteer Matches"}
+                      </button>
+                    </div>
+
+                    {(needMatchesById[need.id] || []).length > 0 && (
+                      <div style={{ display: "grid", gap: 8 }}>
+                        {needMatchesById[need.id].map((m) => {
+                          const reqKey = `${need.id}:${m.volunteer_id}`;
+                          return (
+                            <div key={m.volunteer_id} style={{ border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "8px 10px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                              <div style={{ fontSize: "0.78rem", color: "#f0fdf4" }}>
+                                {m.volunteer_name} · Score {m.composite_score}
+                                {m.recommended ? " · Recommended" : ""}
+                              </div>
+                              <button
+                                className="fw-retry"
+                                onClick={() => sendNeedRequest(need, m)}
+                                disabled={sendingRequestId === reqKey}
+                              >
+                                {sendingRequestId === reqKey ? "Sending..." : "Send Request"}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ))
+            )}
+
+            <div className="fw-sec-head" style={{ marginTop: 20 }}>
+              <div className="fw-sec-title">My Request Updates</div>
+            </div>
+            {needRequests.length === 0 ? (
+              <div className="fw-empty">
+                <div className="fw-empty-text">No outgoing requests yet.</div>
+              </div>
+            ) : (
+              needRequests.slice(0, 8).map((r) => (
+                <div key={r.id} className="fw-report-row">
+                  <div>
+                    <div className="fw-rr-title">{r.needCategory} · {r.village}</div>
+                    <div className="fw-rr-loc">Volunteer: {r.volunteerName || "—"}</div>
+                  </div>
+                  <span
+                    className="fw-badge"
+                    style={{
+                      color: r.status === "accepted" ? "#86efac" : r.status === "declined" ? "#f87171" : "#fbbf24",
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      background: "rgba(255,255,255,0.04)",
+                    }}
+                  >
+                    {r.status}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
 
           {/* RECENT REPORTS */}
           <div className="fw-reports">
