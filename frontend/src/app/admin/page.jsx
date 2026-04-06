@@ -82,10 +82,114 @@ function ChartsSection({ issues }) {
   );
 }
 
+// ── Weather + Early Warning Widget ───────────────────────────────────────────
+function WeatherAndAlerts() {
+  const [weather, setWeather] = useState(null);
+  const [newsAlerts, setNewsAlerts] = useState([]);
+  const [scanning, setScanning] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("http://localhost:8000/api/weather");
+        const data = await res.json();
+        setWeather(data);
+      } catch {}
+    })();
+  }, []);
+
+  const scanNews = async () => {
+    setScanning(true);
+    try {
+      const res = await fetch("http://localhost:8000/api/early-warning/scan", { method: "POST" });
+      const data = await res.json();
+      if (data.success) setNewsAlerts(data.alerts || []);
+    } catch {}
+    setScanning(false);
+  };
+
+  const riskColor = { low: "#86efac", medium: "#fbbf24", high: "#f87171" };
+  const riskBg    = { low: "rgba(134,239,172,0.08)", medium: "rgba(251,191,36,0.08)", high: "rgba(239,68,68,0.08)" };
+
+  return (
+    <div style={{marginBottom:20}}>
+      <div style={{display:"flex",gap:12,flexWrap:"wrap"}}>
+
+        {/* WEATHER CARD */}
+        {weather && (
+          <div style={{flex:1,minWidth:260,background:riskBg[weather.flood_risk]||"rgba(255,255,255,0.02)",border:`1px solid ${riskColor[weather.flood_risk]||"rgba(255,255,255,0.07)"}40`,borderRadius:14,padding:"14px 18px"}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+              <div style={{display:"flex",alignItems:"center",gap:7}}>
+                <span style={{fontSize:"1.1rem"}}>🌧️</span>
+                <span style={{fontSize:"0.72rem",textTransform:"uppercase",letterSpacing:"0.14em",color:"rgba(232,245,233,0.4)"}}>Weather · Raebareli</span>
+              </div>
+              <span style={{fontSize:"0.65rem",padding:"2px 10px",borderRadius:100,background:riskBg[weather.flood_risk],border:`1px solid ${riskColor[weather.flood_risk]}40`,color:riskColor[weather.flood_risk],fontWeight:700,textTransform:"uppercase"}}>
+                {weather.flood_risk} flood risk
+              </span>
+            </div>
+            {weather.alert && (
+              <div style={{fontSize:"0.78rem",color:riskColor[weather.alert.level],marginBottom:8,lineHeight:1.5}}>
+                ⚠️ {weather.alert.message}
+              </div>
+            )}
+            <div style={{display:"flex",gap:8,overflowX:"auto"}}>
+              {weather.forecast?.slice(0,4).map(d=>(
+                <div key={d.date} style={{flexShrink:0,textAlign:"center",padding:"6px 10px",background:"rgba(255,255,255,0.03)",borderRadius:8,border:`1px solid ${d.risk==="high"?"rgba(239,68,68,0.2)":d.risk==="medium"?"rgba(251,191,36,0.2)":"rgba(255,255,255,0.06)"}`}}>
+                  <div style={{fontSize:"0.62rem",color:"rgba(232,245,233,0.35)",marginBottom:3}}>{d.date.slice(5)}</div>
+                  <div style={{fontSize:"0.82rem",fontWeight:700,color:riskColor[d.risk]}}>{d.rainfall_mm}mm</div>
+                  <div style={{fontSize:"0.6rem",color:"rgba(232,245,233,0.3)"}}>{d.rain_prob}%</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* EARLY WARNING CARD */}
+        <div style={{flex:1,minWidth:260,background:"rgba(255,255,255,0.015)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:14,padding:"14px 18px"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+            <div style={{display:"flex",alignItems:"center",gap:7}}>
+              <span style={{fontSize:"1.1rem"}}>📡</span>
+              <span style={{fontSize:"0.72rem",textTransform:"uppercase",letterSpacing:"0.14em",color:"rgba(232,245,233,0.4)"}}>News Early Warning</span>
+            </div>
+            <button onClick={scanNews} disabled={scanning} style={{background:"rgba(134,239,172,0.08)",border:"1px solid rgba(134,239,172,0.2)",color:"#86efac",fontSize:"0.68rem",fontWeight:600,padding:"4px 12px",borderRadius:7,cursor:scanning?"not-allowed":"pointer",fontFamily:"'Outfit',sans-serif"}}>
+              {scanning?"Scanning...":"🔍 Scan News"}
+            </button>
+          </div>
+          {newsAlerts.length===0?(
+            <div style={{fontSize:"0.75rem",color:"rgba(232,245,233,0.25)",lineHeight:1.6}}>
+              Click "Scan News" to check Google News for Raebareli disaster alerts via Gemini AI.
+            </div>
+          ):(
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {newsAlerts.slice(0,expanded?undefined:2).map((a,i)=>(
+                <div key={i} style={{padding:"8px 12px",background:"rgba(255,255,255,0.02)",borderRadius:8,border:`1px solid ${riskColor[a.severity]||"#94a3b8"}25`}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:3}}>
+                    <span style={{fontSize:"0.72rem",fontWeight:600,color:riskColor[a.severity]||"#94a3b8"}}>{a.category?.toUpperCase()} · {a.severity}</span>
+                    {a.source_url&&<a href={a.source_url} target="_blank" rel="noreferrer" style={{fontSize:"0.62rem",color:"rgba(232,245,233,0.3)"}}>↗ source</a>}
+                  </div>
+                  <div style={{fontSize:"0.78rem",color:"#f0fdf4",marginBottom:2}}>{a.title}</div>
+                  <div style={{fontSize:"0.7rem",color:"rgba(232,245,233,0.4)"}}>{a.summary}</div>
+                </div>
+              ))}
+              {newsAlerts.length>2&&(
+                <button onClick={()=>setExpanded(e=>!e)} style={{background:"none",border:"none",color:"rgba(232,245,233,0.3)",fontSize:"0.7rem",cursor:"pointer",textAlign:"left",padding:0}}>
+                  {expanded?"Show less":`+${newsAlerts.length-2} more alerts`}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPage() {
-  const mapRef=useRef(null), mapInstanceRef=useRef(null), markersRef=useRef({}), pulseMarkersRef=useRef({}), leafletRef=useRef(null);
+  const mapRef=useRef(null), mapInstanceRef=useRef(null), markersRef=useRef({}), leafletRef=useRef(null);
   const [villages,setVillages]=useState(()=>VILLAGES_DATA.map(v=>({...v,issues:0})));
   const [issues,setIssues]=useState([]);
+  const [chronicNeeds,setChronicNeeds]=useState([]);
   const [volunteers,setVolunteers]=useState([]);
   const [selIssue,setSelIssue]=useState(null);
   const [selVol,setSelVol]=useState(null);
@@ -93,6 +197,9 @@ export default function AdminPage() {
   const [search,setSearch]=useState("");
   const [toast,setToast]=useState({show:false,icon:"",msg:""});
   const [assigning,setAssigning]=useState(false);
+  const [issueTab,setIssueTab]=useState("emergency");
+  const [chronicForm,setChronicForm]=useState({village:"",category:"education",description:"",_open:false});
+  const [addingChronic,setAddingChronic]=useState(false);
 
   // volunteers
   useEffect(()=>{
@@ -100,6 +207,14 @@ export default function AdminPage() {
       const vols=snap.docs.map((d,i)=>({id:d.id,...d.data(),color:VOL_COLORS[i%VOL_COLORS.length],init:initials(d.data().name),avail:d.data().available!==false}));
       setVolunteers(vols);
       window.__volunteers=vols;
+    });
+    return ()=>unsub();
+  },[]);
+
+  // chronic needs
+  useEffect(()=>{
+    const unsub=onSnapshot(query(collection(db,"chronicNeeds"),orderBy("createdAt","desc")),snap=>{
+      setChronicNeeds(snap.docs.map(d=>({id:d.id,...d.data(),date:d.data().createdAt?.toDate?d.data().createdAt.toDate().toLocaleDateString("en-IN",{day:"numeric",month:"short"}):"—"})));
     });
     return ()=>unsub();
   },[]);
@@ -117,7 +232,7 @@ export default function AdminPage() {
         key
           ? `https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key=${key}`
           : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        {attribution: key?"© Google Maps":"© OpenStreetMap", maxZoom:20, tileSize:256}
+        {attribution:key?"© Google Maps":"© OpenStreetMap",maxZoom:20,tileSize:256}
       ).addTo(map);
       L.control.zoom({position:"bottomright"}).addTo(map);
       VILLAGES_DATA.forEach(v=>addMarker(L,map,{...v,issues:0}));
@@ -140,62 +255,56 @@ export default function AdminPage() {
           } else setIssues(docs);
         }catch{setIssues(docs);}
       } else setIssues(docs);
+
+      // update village issue counts on map
       const counts={};
-      docs.filter(i=>!i.assigned).forEach(i=>VILLAGES_DATA.forEach(v=>{if(i.location?.toLowerCase().includes(v.name.toLowerCase())||i.village?.toLowerCase()===v.name.toLowerCase()||i.villageId===v.id)counts[v.id]=(counts[v.id]||0)+1;}));
-      setVillages(prev=>{const u=prev.map(v=>({...v,issues:counts[v.id]||0}));if(leafletRef.current&&mapInstanceRef.current)u.forEach(v=>refreshMarkerDirect(leafletRef.current,mapInstanceRef.current,v));return u;});
+      docs.filter(i=>i.status!=="resolved").forEach(i=>{
+        const key=i.village||i.location;
+        if(key) counts[key]=(counts[key]||0)+1;
+      });
+      setVillages(prev=>prev.map(v=>({...v,issues:counts[v.name]||0})));
     });
     return ()=>unsub();
   },[]);
 
-  // window globals
-  useEffect(()=>{
-    window.__openReportModal=()=>{};
-    window.__assignFromMap=async(villageId,volName)=>{
-      if(!volName)return;
-      const vName=VILLAGES_DATA.find(v=>v.id===villageId)?.name?.toLowerCase();
-      const target=issues.find(i=>!i.assigned&&i.status!=="resolved"&&(i.villageId===villageId||i.village?.toLowerCase()===vName));
-      if(!target){showToast("⚠️","No unassigned issue for this village");return;}
-      try{await updateDoc(doc(db,"reports",target.id),{assigned:true,assignedTo:volName,status:"assigned"});showToast("🤝",`${volName} assigned`);}
-      catch(e){console.error(e);showToast("❌","Assignment failed");}
-    };
-    return()=>{delete window.__openReportModal;delete window.__assignFromMap;};
-  },[issues]);
-
-  const getColor=v=>v.issues>0?"#ef4444":(v.type==="city"||v.type==="town")?"#3b82f6":"#22c55e";
-  const getRadius=v=>v.type==="city"?11:v.type==="town"?8:6;
-
-  const buildPopupHTML=v=>{
-    const badge=v.issues>0?`<span style="background:rgba(239,68,68,0.15);color:#f87171;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600">⚠ ${v.issues} Issues</span>`:`<span style="background:rgba(34,197,94,0.12);color:#4ade80;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600">✓ Zone Secure</span>`;
-    const assignBlock=v.issues>0?`<div style="margin-top:10px"><select id="vsel-${v.id}" style="width:100%;background:#0d1f12;border:1px solid rgba(134,239,172,0.2);color:#e8f5e9;font-size:11px;padding:6px 8px;border-radius:6px;margin-bottom:6px"><option value="">— Select volunteer —</option>${(window.__volunteers||[]).map(vol=>`<option value="${vol.name}">${vol.name}${vol.avail?"":" (busy)"}</option>`).join("")}</select><button onclick="(function(){var s=document.getElementById('vsel-${v.id}');if(s&&s.value)window.__assignFromMap(${v.id},s.value);})()" style="width:100%;background:#16a34a;border:none;color:white;font-size:11px;font-weight:700;padding:8px;border-radius:6px;cursor:pointer">Assign Volunteer</button></div>`:"";
-    return `<div style="font-family:'Outfit',sans-serif;min-width:190px;padding:4px"><div style="font-weight:700;font-size:14px;color:#f8fafc;margin-bottom:2px">${v.name}</div><div style="font-size:11px;color:#94a3b8;margin-bottom:10px">${v.hi} · ${v.type.toUpperCase()}</div><div>${badge}</div>${assignBlock}</div>`;
-  };
-
-  const addMarker=(L,map,v)=>{
-    const c=getColor(v),r=getRadius(v);
-    if(v.issues>0)pulseMarkersRef.current[v.id]=L.circleMarker([v.lat,v.lng],{radius:r+10,color:"#ef4444",fillColor:"#ef4444",fillOpacity:0.05,weight:1,opacity:0.3}).addTo(map);
-    const m=L.circleMarker([v.lat,v.lng],{radius:r,color:c,fillColor:c,fillOpacity:v.issues>0?0.9:0.7,weight:2}).addTo(map);
-    m.bindPopup(buildPopupHTML(v));
-    markersRef.current[v.id]=m;
-  };
-
-  const refreshMarkerDirect=(L,map,v)=>{
-    if(markersRef.current[v.id]){markersRef.current[v.id].remove();delete markersRef.current[v.id];}
-    if(pulseMarkersRef.current[v.id]){pulseMarkersRef.current[v.id].remove();delete pulseMarkersRef.current[v.id];}
-    addMarker(L,map,v);
-  };
-
   const doAssign=async(issue,volName)=>{
-    if(!issue||!volName)return;
     setAssigning(true);
-    try{await updateDoc(doc(db,"reports",issue.id),{assigned:true,assignedTo:volName,status:"assigned"});showToast("🤝",`${volName} deployed`);setSelIssue(null);setSelVol(null);}
-    catch(e){console.error(e);}
+    try{
+      await updateDoc(doc(db,"reports",issue.id),{assigned:true,assignedTo:volName,status:"assigned",assignedAt:serverTimestamp()});
+      showToast("✓",`Assigned to ${volName}`);
+    }catch(e){console.error(e);}
     finally{setAssigning(false);}
   };
 
   const showToast=(icon,msg)=>{setToast({show:true,icon,msg});setTimeout(()=>setToast(t=>({...t,show:false})),3500);};
   const flyToVillage=v=>{mapInstanceRef.current?.flyTo([v.lat,v.lng],13,{duration:1.2});setTimeout(()=>markersRef.current[v.id]?.openPopup(),1300);};
 
-  const fv=villages.filter(v=>v.name.toLowerCase().includes(search.toLowerCase())||v.hi.includes(search));
+  const addChronicNeed=async()=>{
+    if(!chronicForm.village||!chronicForm.description)return;
+    setAddingChronic(true);
+    try{
+      await addDoc(collection(db,"chronicNeeds"),{
+        village:chronicForm.village,
+        category:chronicForm.category,
+        description:chronicForm.description,
+        status:"open",
+        createdAt:serverTimestamp(),
+        addedBy:"admin",
+      });
+      setChronicForm({village:"",category:"education",description:"",_open:false});
+      showToast("📋",`Chronic need logged for ${chronicForm.village}`);
+    }catch(e){console.error(e);}
+    finally{setAddingChronic(false);}
+  };
+
+  const resolveChronicNeed=async(id)=>{
+    try{
+      await updateDoc(doc(db,"chronicNeeds",id),{status:"resolved",resolvedAt:serverTimestamp()});
+      showToast("✓","Marked as resolved");
+    }catch(e){console.error(e);}
+  };
+
+  const fv=villages.filter(v=>v.name.toLowerCase().includes(search.toLowerCase())||v.hi?.includes(search));
   const problemV=fv.filter(v=>v.issues>0), safeV=fv.filter(v=>v.issues===0);
 
   return (
@@ -241,6 +350,9 @@ export default function AdminPage() {
 
         <main style={{flex:1,overflowY:"auto",padding:"28px 32px",maxWidth:1400,width:"100%",margin:"0 auto"}}>
 
+          {/* WEATHER + EARLY WARNING */}
+          <WeatherAndAlerts/>
+
           {/* VILLAGE STRIP */}
           <div className="af a1" style={{marginBottom:16}}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
@@ -278,53 +390,133 @@ export default function AdminPage() {
           {/* CHARTS */}
           <div className="af a3"><ChartsSection issues={issues}/></div>
 
-          {/* ISSUES */}
+          {/* ISSUES — tabbed: Emergency + Chronic */}
           <div style={{background:"rgba(255,255,255,0.015)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:18,overflow:"hidden",marginBottom:20}}>
-            <div style={{padding:"18px 24px",borderBottom:"1px solid rgba(255,255,255,0.06)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-              <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{width:3,height:14,background:"#f87171",borderRadius:2}}/><span style={{fontSize:"0.68rem",textTransform:"uppercase",letterSpacing:"0.18em",color:"rgba(232,245,233,0.35)"}}>Active Issues</span></div>
-              <span style={{fontSize:"0.65rem",padding:"3px 10px",borderRadius:100,background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.2)",color:"#f87171"}}>{issues.filter(i=>!i.assigned&&i.status!=="resolved").length} unresolved</span>
-            </div>
-            {issues.length===0?(
-              <div style={{padding:"48px 24px",textAlign:"center"}}>
-                <div style={{fontSize:"1.8rem",marginBottom:10,opacity:0.3}}>📋</div>
-                <div style={{fontSize:"0.82rem",color:"rgba(232,245,233,0.22)",lineHeight:1.6}}>No active incidents.<br/>Field workers will appear here in real time.</div>
+            {/* Tab header */}
+            <div style={{padding:"14px 24px",borderBottom:"1px solid rgba(255,255,255,0.06)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <div style={{display:"flex",gap:4,background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:10,padding:3}}>
+                {[["emergency","🚨 Emergency",issues.filter(i=>!i.assigned&&i.status!=="resolved").length,"#f87171"],["chronic","📋 Chronic Needs",chronicNeeds.filter(n=>n.status==="open").length,"#c084fc"]].map(([tab,label,count,color])=>(
+                  <button key={tab} onClick={()=>setIssueTab(tab)} style={{padding:"6px 16px",borderRadius:7,border:"none",fontFamily:"'Outfit',sans-serif",fontSize:"0.75rem",fontWeight:600,cursor:"pointer",transition:"all 0.2s",background:issueTab===tab?`${color}15`:"transparent",color:issueTab===tab?color:"rgba(232,245,233,0.35)",display:"flex",alignItems:"center",gap:6}}>
+                    {label}
+                    <span style={{fontSize:"0.65rem",padding:"1px 7px",borderRadius:100,background:issueTab===tab?`${color}20`:"rgba(255,255,255,0.05)",color:issueTab===tab?color:"rgba(232,245,233,0.3)"}}>{count}</span>
+                  </button>
+                ))}
               </div>
-            ):(
-              <div style={{padding:"12px 16px",display:"flex",flexDirection:"column",gap:8}}>
-                {issues.map(issue=>{
-                  const isAssigned=issue.assigned||issue.status==="resolved";
-                  const ss=issue.score!=null?scoreBadge(issue.score):null;
-                  return (
-                    <div key={issue.id} onClick={()=>!isAssigned&&setModal({open:true,issue})} style={{padding:"16px 20px",borderRadius:14,position:"relative",overflow:"hidden",cursor:isAssigned?"default":"pointer",border:"1px solid rgba(255,255,255,0.06)",background:isAssigned?"rgba(255,255,255,0.01)":"rgba(255,255,255,0.02)",opacity:isAssigned?0.5:1,transition:"all 0.2s"}}>
-                      <div style={{position:"absolute",top:0,left:0,width:3,height:"100%",background:sevDot[issue.severity]||"#86efac",borderRadius:"3px 0 0 3px"}}/>
-                      <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
-                        <div style={{flex:1}}>
-                          <div style={{fontSize:"0.88rem",fontWeight:600,color:"#f0fdf4",marginBottom:5}}>{issue.title||issue.description?.slice(0,50)}</div>
-                          <div style={{display:"flex",alignItems:"center",gap:10,fontSize:"0.72rem",color:"rgba(232,245,233,0.35)",flexWrap:"wrap"}}>
-                            <span>📍 {issue.village||issue.location}</span>
-                            <span style={{opacity:0.4}}>·</span><span>{issue.category}</span>
-                            <span style={{opacity:0.4}}>·</span><span>{issue.date}</span>
-                            {issue.fieldWorkerName&&<><span style={{opacity:0.4}}>·</span><span>👤 {issue.fieldWorkerName}</span></>}
-                            {isAssigned&&issue.assignedTo&&<><span style={{opacity:0.4}}>·</span><span style={{color:"#86efac"}}>✓ {issue.assignedTo}</span></>}
-                          </div>
-                          {!isAssigned&&(
-                            <div onClick={e=>e.stopPropagation()} style={{display:"flex",alignItems:"center",gap:8,marginTop:10}}>
-                              <select id={`vs-${issue.id}`} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:7,padding:"5px 10px",color:"#e8f5e9",fontFamily:"'Outfit',sans-serif",fontSize:"0.72rem",outline:"none"}}>
-                                <option value="">— Assign volunteer —</option>
-                                {volunteers.map(vol=><option key={vol.id} value={vol.name}>{vol.name}{vol.avail?"":" (busy)"}</option>)}
-                              </select>
-                              <button onClick={()=>{const s=document.getElementById(`vs-${issue.id}`);if(s?.value)doAssign(issue,s.value);}} style={{background:"rgba(134,239,172,0.1)",border:"1px solid rgba(134,239,172,0.25)",color:"#86efac",fontSize:"0.72rem",fontWeight:600,padding:"5px 14px",borderRadius:7,cursor:"pointer",fontFamily:"'Outfit',sans-serif"}}>Assign</button>
+              {issueTab==="chronic"&&(
+                <button onClick={()=>setChronicForm(f=>({...f,_open:!f._open}))} style={{background:"rgba(192,132,252,0.1)",border:"1px solid rgba(192,132,252,0.25)",color:"#c084fc",fontSize:"0.72rem",fontWeight:600,padding:"6px 14px",borderRadius:8,cursor:"pointer",fontFamily:"'Outfit',sans-serif"}}>
+                  + Add Need
+                </button>
+              )}
+            </div>
+
+            {/* EMERGENCY TAB */}
+            {issueTab==="emergency"&&(
+              issues.length===0?(
+                <div style={{padding:"48px 24px",textAlign:"center"}}>
+                  <div style={{fontSize:"1.8rem",marginBottom:10,opacity:0.3}}>🚨</div>
+                  <div style={{fontSize:"0.82rem",color:"rgba(232,245,233,0.22)",lineHeight:1.6}}>No active incidents.<br/>Field workers will appear here in real time.</div>
+                </div>
+              ):(
+                <div style={{padding:"12px 16px",display:"flex",flexDirection:"column",gap:8}}>
+                  {issues.map(issue=>{
+                    const isAssigned=issue.assigned||issue.status==="resolved";
+                    const ss=issue.score!=null?scoreBadge(issue.score):null;
+                    return (
+                      <div key={issue.id} onClick={()=>!isAssigned&&setModal({open:true,issue})} style={{padding:"16px 20px",borderRadius:14,position:"relative",overflow:"hidden",cursor:isAssigned?"default":"pointer",border:"1px solid rgba(255,255,255,0.06)",background:isAssigned?"rgba(255,255,255,0.01)":"rgba(255,255,255,0.02)",opacity:isAssigned?0.5:1,transition:"all 0.2s"}}>
+                        <div style={{position:"absolute",top:0,left:0,width:3,height:"100%",background:sevDot[issue.severity]||"#86efac",borderRadius:"3px 0 0 3px"}}/>
+                        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
+                          <div style={{flex:1}}>
+                            <div style={{fontSize:"0.88rem",fontWeight:600,color:"#f0fdf4",marginBottom:5}}>{issue.title||issue.description?.slice(0,50)}</div>
+                            <div style={{display:"flex",alignItems:"center",gap:10,fontSize:"0.72rem",color:"rgba(232,245,233,0.35)",flexWrap:"wrap"}}>
+                              <span>📍 {issue.village||issue.location}</span>
+                              <span style={{opacity:0.4}}>·</span><span>{issue.category}</span>
+                              <span style={{opacity:0.4}}>·</span><span>{issue.date}</span>
+                              {issue.fieldWorkerName&&<><span style={{opacity:0.4}}>·</span><span>👤 {issue.fieldWorkerName}</span></>}
+                              {isAssigned&&issue.assignedTo&&<><span style={{opacity:0.4}}>·</span><span style={{color:"#86efac"}}>✓ {issue.assignedTo}</span></>}
                             </div>
-                          )}
-                        </div>
-                        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:5,flexShrink:0}}>
-                          <span style={{fontSize:"0.65rem",fontWeight:700,padding:"3px 10px",borderRadius:100,background:sb(issue.severity),border:`1px solid ${sbd(issue.severity)}`,color:sc(issue.severity),textTransform:"uppercase",letterSpacing:"0.08em"}}>{issue.severity||"—"}</span>
-                          {ss&&<span style={{fontSize:"0.65rem",fontWeight:700,padding:"3px 10px",borderRadius:100,background:ss.bg,border:`1px solid ${ss.bd}`,color:ss.c}}>⚡ {issue.score}</span>}
+                            {!isAssigned&&(
+                              <div onClick={e=>e.stopPropagation()} style={{display:"flex",alignItems:"center",gap:8,marginTop:10}}>
+                                <select id={`vs-${issue.id}`} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:7,padding:"5px 10px",color:"#e8f5e9",fontFamily:"'Outfit',sans-serif",fontSize:"0.72rem",outline:"none"}}>
+                                  <option value="">— Assign volunteer —</option>
+                                  {volunteers.map(vol=><option key={vol.id} value={vol.name}>{vol.name}{vol.avail?"":" (busy)"}</option>)}
+                                </select>
+                                <button onClick={()=>{const s=document.getElementById(`vs-${issue.id}`);if(s?.value)doAssign(issue,s.value);}} style={{background:"rgba(134,239,172,0.1)",border:"1px solid rgba(134,239,172,0.25)",color:"#86efac",fontSize:"0.72rem",fontWeight:600,padding:"5px 14px",borderRadius:7,cursor:"pointer",fontFamily:"'Outfit',sans-serif"}}>Assign</button>
+                              </div>
+                            )}
+                          </div>
+                          <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:5,flexShrink:0}}>
+                            <span style={{fontSize:"0.65rem",fontWeight:700,padding:"3px 10px",borderRadius:100,background:sb(issue.severity),border:`1px solid ${sbd(issue.severity)}`,color:sc(issue.severity),textTransform:"uppercase",letterSpacing:"0.08em"}}>{issue.severity||"—"}</span>
+                            {ss&&<span style={{fontSize:"0.65rem",fontWeight:700,padding:"3px 10px",borderRadius:100,background:ss.bg,border:`1px solid ${ss.bd}`,color:ss.c}}>⚡ {issue.score}</span>}
+                          </div>
                         </div>
                       </div>
+                    );
+                  })}
+                </div>
+              )
+            )}
+
+            {/* CHRONIC NEEDS TAB */}
+            {issueTab==="chronic"&&(
+              <div>
+                {/* Add form */}
+                {chronicForm._open&&(
+                  <div style={{padding:"16px 20px",borderBottom:"1px solid rgba(255,255,255,0.05)",background:"rgba(192,132,252,0.03)"}}>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+                      <div>
+                        <div style={{fontSize:"0.62rem",textTransform:"uppercase",letterSpacing:"0.12em",color:"rgba(232,245,233,0.3)",marginBottom:5}}>Village</div>
+                        <input value={chronicForm.village} onChange={e=>setChronicForm(f=>({...f,village:e.target.value}))} placeholder="Village name" style={{width:"100%",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"8px 12px",color:"#f0fdf4",fontFamily:"'Outfit',sans-serif",fontSize:"0.82rem",outline:"none"}}/>
+                      </div>
+                      <div>
+                        <div style={{fontSize:"0.62rem",textTransform:"uppercase",letterSpacing:"0.12em",color:"rgba(232,245,233,0.3)",marginBottom:5}}>Category</div>
+                        <select value={chronicForm.category} onChange={e=>setChronicForm(f=>({...f,category:e.target.value}))} style={{width:"100%",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"8px 12px",color:"#f0fdf4",fontFamily:"'Outfit',sans-serif",fontSize:"0.82rem",outline:"none"}}>
+                          {["education","healthcare","livelihood","infrastructure","water","women_empowerment","other"].map(c=><option key={c} value={c} style={{background:"#0d1f12"}}>{c.replace("_"," ").replace(/\b\w/g,l=>l.toUpperCase())}</option>)}
+                        </select>
+                      </div>
                     </div>
-                  );
-                })}
+                    <div style={{marginBottom:10}}>
+                      <div style={{fontSize:"0.62rem",textTransform:"uppercase",letterSpacing:"0.12em",color:"rgba(232,245,233,0.3)",marginBottom:5}}>Description</div>
+                      <textarea value={chronicForm.description} onChange={e=>setChronicForm(f=>({...f,description:e.target.value}))} placeholder="Describe the chronic need..." rows={2} style={{width:"100%",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"8px 12px",color:"#f0fdf4",fontFamily:"'Outfit',sans-serif",fontSize:"0.82rem",outline:"none",resize:"none"}}/>
+                    </div>
+                    <div style={{display:"flex",gap:8}}>
+                      <button onClick={()=>setChronicForm(f=>({...f,_open:false}))} style={{flex:1,padding:"8px",borderRadius:8,border:"1px solid rgba(255,255,255,0.07)",background:"none",color:"rgba(232,245,233,0.35)",fontFamily:"'Outfit',sans-serif",fontSize:"0.78rem",cursor:"pointer"}}>Cancel</button>
+                      <button onClick={addChronicNeed} disabled={addingChronic||!chronicForm.village||!chronicForm.description} style={{flex:2,padding:"8px",borderRadius:8,border:"none",background:"rgba(192,132,252,0.15)",color:"#c084fc",fontFamily:"'Outfit',sans-serif",fontWeight:600,fontSize:"0.78rem",cursor:"pointer"}}>
+                        {addingChronic?"Saving...":"Log Chronic Need"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {chronicNeeds.length===0?(
+                  <div style={{padding:"48px 24px",textAlign:"center"}}>
+                    <div style={{fontSize:"1.8rem",marginBottom:10,opacity:0.3}}>📋</div>
+                    <div style={{fontSize:"0.82rem",color:"rgba(232,245,233,0.22)",lineHeight:1.6}}>No chronic needs logged yet.<br/>These are long-term community needs — education, health, livelihood.</div>
+                  </div>
+                ):(
+                  <div style={{padding:"12px 16px",display:"flex",flexDirection:"column",gap:8}}>
+                    {chronicNeeds.map(need=>(
+                      <div key={need.id} style={{padding:"14px 18px",borderRadius:12,border:"1px solid rgba(192,132,252,0.12)",background:need.status==="resolved"?"rgba(255,255,255,0.01)":"rgba(192,132,252,0.03)",opacity:need.status==="resolved"?0.5:1,transition:"all 0.2s"}}>
+                        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:12}}>
+                          <div style={{flex:1}}>
+                            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
+                              <span style={{fontSize:"0.65rem",padding:"2px 9px",borderRadius:100,background:"rgba(192,132,252,0.12)",border:"1px solid rgba(192,132,252,0.2)",color:"#c084fc",textTransform:"uppercase",letterSpacing:"0.08em"}}>{need.category?.replace("_"," ")}</span>
+                              <span style={{fontSize:"0.65rem",color:"rgba(232,245,233,0.3)"}}>📍 {need.village}</span>
+                              <span style={{fontSize:"0.65rem",color:"rgba(232,245,233,0.2)"}}>· {need.date}</span>
+                            </div>
+                            <div style={{fontSize:"0.85rem",color:"#f0fdf4",lineHeight:1.5}}>{need.description}</div>
+                          </div>
+                          {need.status==="open"?(
+                            <button onClick={()=>resolveChronicNeed(need.id)} style={{flexShrink:0,background:"rgba(134,239,172,0.08)",border:"1px solid rgba(134,239,172,0.2)",color:"#86efac",fontSize:"0.68rem",fontWeight:600,padding:"5px 12px",borderRadius:7,cursor:"pointer",fontFamily:"'Outfit',sans-serif",whiteSpace:"nowrap"}}>
+                              ✓ Resolve
+                            </button>
+                          ):(
+                            <span style={{fontSize:"0.65rem",padding:"3px 10px",borderRadius:100,background:"rgba(134,239,172,0.08)",color:"#86efac",flexShrink:0}}>Resolved</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
