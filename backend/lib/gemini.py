@@ -14,7 +14,7 @@ load_dotenv()
 genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 
 # ── Model
-model = genai.GenerativeModel("gemini-2.5-flash-preview-05-20")
+model = genai.GenerativeModel("gemini-2.0-flash-preview-05-20")
 _gemini_concurrency = asyncio.Semaphore(4)
 
 

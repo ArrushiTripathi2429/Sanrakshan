@@ -34,7 +34,7 @@ const ROLE_META = {
 };
 
 const roleRedirects = {
-  "field-worker": "/fieldworker",
+  "field-worker": "/field-worker",
   "admin": "/admin",
   "volunteer": "/volunteer",
 };

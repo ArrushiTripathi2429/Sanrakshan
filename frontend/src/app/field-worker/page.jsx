@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useRef } from "react";
 import { auth, db } from "@/lib/firebase";
@@ -275,31 +275,32 @@ export default function FieldWorkerPage() {
     );
   };
 
-  // Save report to Firestore
-  const saveReport = async (data) => {
-    setSubmitting(true);
-    try {
-      const currentUser = auth.currentUser;
-      await addDoc(collection(db, "reports"), {
-        ...data,
-        status: "pending",
-        fieldWorkerId: currentUser?.uid || null,
-        fieldWorkerName: currentUser?.displayName || "Field Worker",
-        createdAt: serverTimestamp(),
-      });
-      setSubmitted(true);
-      setTimeout(() => {
-        setSubmitted(false);
-        setMode(null);
-        setForm(emptyForm);
-        resetVoice();
-      }, 2000);
-    } catch (e) {
-      console.error("Error saving report:", e);
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  
+ // Save report to Firestore
+const saveReport = async (data) => {
+  setSubmitting(true);
+  try {
+    const currentUser = auth.currentUser;
+    await addDoc(collection(db, "reports"), {
+      ...data,
+      status: "pending",
+      fieldWorkerId: currentUser?.uid || null,
+      fieldWorkerName: currentUser?.displayName || "Field Worker",
+      createdAt: serverTimestamp(),
+    });
+    setSubmitted(true);
+    setTimeout(() => {
+      setSubmitted(false);
+      setMode(null);
+      setForm(emptyForm);
+      resetVoice();
+    }, 2000);
+  } catch (e) {
+    console.error("Error saving report:", e);
+  } finally {
+    setSubmitting(false);
+  }
+};
 
   // Recording
   const startRecording = async () => {
