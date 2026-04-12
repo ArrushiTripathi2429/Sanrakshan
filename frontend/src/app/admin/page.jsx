@@ -723,7 +723,7 @@ export default function AdminPage() {
     markersRef.current = {};
 
     villages.forEach(v => {
-      const hasIssue = v.issues > 0;
+      const hasIssue = v.issues > 0  || v.chronicIssues > 0;;
       const color = hasIssue ? "#ef4444" : "#22c55e";
       const glowColor = hasIssue ? "rgba(239,68,68,0.4)" : "rgba(34,197,94,0.3)";
 
