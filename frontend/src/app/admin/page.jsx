@@ -468,7 +468,7 @@ Report Date: ${new Date().toLocaleString("en-IN")}`;
           <span style={{ fontSize:"0.68rem", textTransform:"uppercase", letterSpacing:"0.18em", color:"rgba(232,245,233,0.35)" }}>Data Ingestion · NGO & Survey Data</span>
         </div>
         <div style={{ display:"flex", gap:4, background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:10, padding:3 }}>
-          {[["csv","📊 CSV Import"],["report","📋 Auto Report"]].map(([tab, label]) => (
+          {[["csv"," CSV Import"],["report"," Auto Report"]].map(([tab, label]) => (
             <button key={tab} onClick={() => setCsvTab(tab)} style={{ padding:"6px 16px", borderRadius:7, border:"none", fontFamily:"'Outfit',sans-serif", fontSize:"0.75rem", fontWeight:600, cursor:"pointer", transition:"all 0.2s", background:csvTab===tab?"rgba(56,189,248,0.15)":"transparent", color:csvTab===tab?"#38bdf8":"rgba(232,245,233,0.35)" }}>
               {label}
             </button>
@@ -694,6 +694,7 @@ export default function AdminPage() {
   }, []);
 
   // ── Map 
+// ── Map 
   useEffect(() => {
     if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; }
     (async () => {
@@ -711,6 +712,50 @@ export default function AdminPage() {
     })();
     return () => { if (mapInstanceRef.current) { mapInstanceRef.current.remove(); mapInstanceRef.current = null; } };
   }, []);
+
+  // ── Village markers (red/green based on issues)
+  useEffect(() => {
+    const L = leafletRef.current;
+    const map = mapInstanceRef.current;
+    if (!L || !map) return;
+
+    Object.values(markersRef.current).forEach(m => m.remove());
+    markersRef.current = {};
+
+    villages.forEach(v => {
+      const hasIssue = v.issues > 0;
+      const color = hasIssue ? "#ef4444" : "#22c55e";
+      const glowColor = hasIssue ? "rgba(239,68,68,0.4)" : "rgba(34,197,94,0.3)";
+
+      const icon = L.divIcon({
+        className: "",
+        html: `<div style="
+          width: ${hasIssue ? 14 : 9}px;
+          height: ${hasIssue ? 14 : 9}px;
+          background: ${color};
+          border-radius: 50%;
+          border: 2px solid rgba(255,255,255,0.8);
+          box-shadow: 0 0 ${hasIssue ? 10 : 5}px ${glowColor};
+          ${hasIssue ? "animation: pulse 1.5s ease infinite;" : ""}
+        "></div>`,
+        iconSize: [hasIssue ? 14 : 9, hasIssue ? 14 : 9],
+        iconAnchor: [hasIssue ? 7 : 4, hasIssue ? 7 : 4],
+      });
+
+      const marker = L.marker([v.lat, v.lng], { icon })
+        .addTo(map)
+        .bindPopup(`
+          <div style="padding:10px;min-width:140px;">
+            <div style="font-weight:700;font-size:0.9rem;margin-bottom:4px;">${v.name}</div>
+            <div style="font-size:0.75rem;color:${hasIssue ? "#f87171" : "#86efac"}">
+              ${hasIssue ? `🚨 ${v.issues} active issue${v.issues > 1 ? "s" : ""}` : "✅ No active issues"}
+            </div>
+          </div>
+        `);
+
+      markersRef.current[v.id] = marker;
+    });
+  }, [villages]);
 
   // ── Assign volunteer 
   const doAssign = async (issue, volName) => {
