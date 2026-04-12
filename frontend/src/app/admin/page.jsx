@@ -294,7 +294,7 @@ function WeatherAndAlerts() {
           <div style={{ flex:1, minWidth:260, background:riskBg[weather.flood_risk] || "rgba(255,255,255,0.02)", border:`1px solid ${riskColor[weather.flood_risk] || "rgba(255,255,255,0.07)"}40`, borderRadius:14, padding:"14px 18px" }}>
             <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:8 }}>
               <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-                <span style={{ fontSize:"1.1rem" }}>🌧️</span>
+                <span style={{ fontSize:"1.1rem" }}></span>
                 <span style={{ fontSize:"0.72rem", textTransform:"uppercase", letterSpacing:"0.14em", color:"rgba(232,245,233,0.4)" }}>Weather · Raebareli</span>
               </div>
               <span style={{ fontSize:"0.65rem", padding:"2px 10px", borderRadius:100, background:riskBg[weather.flood_risk], border:`1px solid ${riskColor[weather.flood_risk]}40`, color:riskColor[weather.flood_risk], fontWeight:700, textTransform:"uppercase" }}>
@@ -322,11 +322,11 @@ function WeatherAndAlerts() {
         <div style={{ flex:1, minWidth:260, background:"rgba(255,255,255,0.015)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:14, padding:"14px 18px" }}>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
             <div style={{ display:"flex", alignItems:"center", gap:7 }}>
-              <span style={{ fontSize:"1.1rem" }}>📡</span>
+              <span style={{ fontSize:"1.1rem" }}></span>
               <span style={{ fontSize:"0.72rem", textTransform:"uppercase", letterSpacing:"0.14em", color:"rgba(232,245,233,0.4)" }}>News Early Warning</span>
             </div>
             <button onClick={scanNews} disabled={scanning} style={{ background:"rgba(134,239,172,0.08)", border:"1px solid rgba(134,239,172,0.2)", color:"#86efac", fontSize:"0.68rem", fontWeight:600, padding:"4px 12px", borderRadius:7, cursor:scanning?"not-allowed":"pointer", fontFamily:"'Outfit',sans-serif" }}>
-              {scanning ? "Scanning..." : "🔍 Scan News"}
+              {scanning ? "Scanning..." : " Scan News"}
             </button>
           </div>
           {newsAlerts.length === 0 ? (
@@ -357,7 +357,230 @@ function WeatherAndAlerts() {
     </div>
   );
 }
+ 
 
+// ── Data Ingestion: CSV Upload + Auto Report Generator
+function DataIngestionSection({ showToast }) {
+  const [csvTab, setCsvTab] = useState("csv"); // "csv" | "report"
+  const [csvData, setCsvData] = useState([]);
+  const [csvFileName, setCsvFileName] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [reportForm, setReportForm] = useState({
+    date: new Date().toISOString().split("T")[0],
+    village: "", volunteers: "", impact: "", category: "flood",
+    description: "", affected: "", severity: "medium",
+  });
+  const [generatedReport, setGeneratedReport] = useState(null);
+
+  const handleCSV = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setCsvFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const lines = ev.target.result.trim().split("\n");
+      const headers = lines[0].split(",").map(h => h.trim().toLowerCase());
+      const rows = lines.slice(1).map(line => {
+        const vals = line.split(",").map(v => v.trim());
+        return headers.reduce((obj, h, i) => { obj[h] = vals[i] || ""; return obj; }, {});
+      }).filter(r => r.village || r.location);
+      setCsvData(rows);
+    };
+    reader.readAsText(file);
+  };
+
+  const importCSV = async () => {
+    if (!csvData.length) return;
+    setImporting(true);
+    let count = 0;
+    try {
+      for (const row of csvData) {
+        await addDoc(collection(db, "reports"), {
+          title: row.title || row.issue || `${row.category || "Issue"} in ${row.village || row.location}`,
+          category: row.category || "other",
+          location: row.village || row.location || "",
+          village: row.village || row.location || "",
+          severity: row.severity || "medium",
+          affected: row.affected || row.affected_count || "",
+          description: row.description || "",
+          status: "pending",
+          assigned: false,
+          fieldWorkerName: "CSV Import",
+          fieldWorkerId: "csv_import",
+          createdAt: serverTimestamp(),
+          source: "csv_import",
+        });
+        count++;
+      }
+      showToast("📊", `${count} records imported successfully`);
+      setCsvData([]);
+      setCsvFileName("");
+    } catch (e) {
+      console.error(e);
+      showToast("❌", "Import failed, check console");
+    }
+    setImporting(false);
+  };
+
+  const generateReport = () => {
+    const r = reportForm;
+    if (!r.village || !r.description) return;
+    const report = `SANRAKSHAN FIELD REPORT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Date         : ${r.date}
+Village      : ${r.village}
+Category     : ${r.category.toUpperCase()}
+Severity     : ${r.severity.toUpperCase()}
+Affected     : ~${r.affected || "N/A"} people
+Volunteers   : ${r.volunteers || "None deployed"}
+
+SITUATION SUMMARY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${r.description}
+
+IMPACT ASSESSMENT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${r.impact || "No impact data provided."}
+
+Generated by Sanrakshan · Raebareli District
+Report Date: ${new Date().toLocaleString("en-IN")}`;
+    setGeneratedReport(report);
+  };
+
+  const downloadReport = () => {
+    const blob = new Blob([generatedReport], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `sanrakshan-report-${reportForm.village}-${reportForm.date}.txt`;
+    a.click(); URL.revokeObjectURL(url);
+  };
+
+  const card = { background:"rgba(255,255,255,0.015)", border:"1px solid rgba(255,255,255,0.07)", borderRadius:18, overflow:"hidden", marginBottom:20 };
+  const label = { fontSize:"0.62rem", textTransform:"uppercase", letterSpacing:"0.12em", color:"rgba(232,245,233,0.3)", marginBottom:5, display:"block" };
+  const input = { width:"100%", background:"rgba(255,255,255,0.04)", border:"1px solid rgba(255,255,255,0.08)", borderRadius:8, padding:"8px 12px", color:"#f0fdf4", fontFamily:"'Outfit',sans-serif", fontSize:"0.82rem", outline:"none" };
+
+  return (
+    <div style={card}>
+      {/* Header */}
+      <div style={{ padding:"14px 24px", borderBottom:"1px solid rgba(255,255,255,0.06)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+          <span style={{ width:3, height:14, background:"#38bdf8", borderRadius:2, display:"inline-block" }}/>
+          <span style={{ fontSize:"0.68rem", textTransform:"uppercase", letterSpacing:"0.18em", color:"rgba(232,245,233,0.35)" }}>Data Ingestion · NGO & Survey Data</span>
+        </div>
+        <div style={{ display:"flex", gap:4, background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:10, padding:3 }}>
+          {[["csv","📊 CSV Import"],["report","📋 Auto Report"]].map(([tab, label]) => (
+            <button key={tab} onClick={() => setCsvTab(tab)} style={{ padding:"6px 16px", borderRadius:7, border:"none", fontFamily:"'Outfit',sans-serif", fontSize:"0.75rem", fontWeight:600, cursor:"pointer", transition:"all 0.2s", background:csvTab===tab?"rgba(56,189,248,0.15)":"transparent", color:csvTab===tab?"#38bdf8":"rgba(232,245,233,0.35)" }}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* CSV TAB */}
+      {csvTab === "csv" && (
+        <div style={{ padding:"20px 24px" }}>
+          <div style={{ fontSize:"0.78rem", color:"rgba(232,245,233,0.35)", marginBottom:16, lineHeight:1.6 }}>
+            Upload CSV files from paper surveys or NGO field reports. Expected columns: <span style={{ color:"#38bdf8", fontFamily:"monospace" }}>village, category, description, severity, affected</span>
+          </div>
+
+          {/* Upload area */}
+          <label style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:8, padding:"28px", border:"1px dashed rgba(56,189,248,0.25)", borderRadius:12, background:"rgba(56,189,248,0.03)", cursor:"pointer", marginBottom:16, transition:"all 0.2s" }}>
+            <span style={{ fontSize:"1.8rem" }}>📁</span>
+            <span style={{ fontSize:"0.82rem", color:"rgba(232,245,233,0.5)" }}>{csvFileName || "Click to upload CSV file"}</span>
+            <span style={{ fontSize:"0.68rem", color:"rgba(232,245,233,0.25)" }}>Supports .csv files from paper surveys and NGO reports</span>
+            <input type="file" accept=".csv" onChange={handleCSV} style={{ display:"none" }}/>
+          </label>
+
+          {/* Preview */}
+          {csvData.length > 0 && (
+            <div style={{ marginBottom:16 }}>
+              <div style={{ fontSize:"0.68rem", color:"#38bdf8", marginBottom:8, textTransform:"uppercase", letterSpacing:"0.12em" }}>
+                ✓ {csvData.length} records detected — preview (first 3):
+              </div>
+              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                {csvData.slice(0, 3).map((row, i) => (
+                  <div key={i} style={{ padding:"8px 12px", background:"rgba(56,189,248,0.04)", border:"1px solid rgba(56,189,248,0.12)", borderRadius:8, fontSize:"0.75rem", color:"rgba(232,245,233,0.6)" }}>
+                    📍 {row.village || row.location} · {row.category || "other"} · {row.severity || "medium"}
+                    {row.description && <span style={{ color:"rgba(232,245,233,0.35)" }}> — {row.description.slice(0, 60)}</span>}
+                  </div>
+                ))}
+                {csvData.length > 3 && <div style={{ fontSize:"0.7rem", color:"rgba(232,245,233,0.25)", padding:"4px 12px" }}>+{csvData.length - 3} more rows</div>}
+              </div>
+            </div>
+          )}
+
+          <button onClick={importCSV} disabled={!csvData.length || importing} style={{ width:"100%", padding:"10px", borderRadius:10, border:"none", background:csvData.length?"rgba(56,189,248,0.15)":"rgba(255,255,255,0.04)", color:csvData.length?"#38bdf8":"rgba(232,245,233,0.2)", fontFamily:"'Outfit',sans-serif", fontWeight:600, fontSize:"0.82rem", cursor:csvData.length?"pointer":"not-allowed", transition:"all 0.2s" }}>
+            {importing ? `Importing ${csvData.length} records...` : `Import ${csvData.length || 0} Records to Firestore`}
+          </button>
+        </div>
+      )}
+
+      {/* REPORT TAB */}
+      {csvTab === "report" && (
+        <div style={{ padding:"20px 24px" }}>
+          <div style={{ fontSize:"0.78rem", color:"rgba(232,245,233,0.35)", marginBottom:16 }}>
+            Fill in the details and generate a structured field report automatically.
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:12, marginBottom:12 }}>
+            <div>
+              <span style={label}>Date</span>
+              <input type="date" value={reportForm.date} onChange={e => setReportForm(f => ({...f, date:e.target.value}))} style={input}/>
+            </div>
+            <div>
+              <span style={label}>Village</span>
+              <input placeholder="e.g. Dalmau" value={reportForm.village} onChange={e => setReportForm(f => ({...f, village:e.target.value}))} style={input}/>
+            </div>
+            <div>
+              <span style={label}>Category</span>
+              <select value={reportForm.category} onChange={e => setReportForm(f => ({...f, category:e.target.value}))} style={input}>
+                {["flood","medical","road","food","education","electricity","water","other"].map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+          </div>
+          <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:12, marginBottom:12 }}>
+            <div>
+              <span style={label}>Severity</span>
+              <select value={reportForm.severity} onChange={e => setReportForm(f => ({...f, severity:e.target.value}))} style={input}>
+                {["low","medium","high"].map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
+            <div>
+              <span style={label}>People Affected</span>
+              <input placeholder="e.g. 200" value={reportForm.affected} onChange={e => setReportForm(f => ({...f, affected:e.target.value}))} style={input}/>
+            </div>
+          </div>
+          <div style={{ marginBottom:12 }}>
+            <span style={label}>Volunteers Deployed</span>
+            <input placeholder="e.g. Ramesh Kumar, Priya Verma" value={reportForm.volunteers} onChange={e => setReportForm(f => ({...f, volunteers:e.target.value}))} style={input}/>
+          </div>
+          <div style={{ marginBottom:12 }}>
+            <span style={label}>Situation Description *</span>
+            <textarea placeholder="Describe the situation on ground..." value={reportForm.description} onChange={e => setReportForm(f => ({...f, description:e.target.value}))} rows={3} style={{...input, resize:"none"}}/>
+          </div>
+          <div style={{ marginBottom:16 }}>
+            <span style={label}>Impact Assessment</span>
+            <textarea placeholder="What was the impact? What resources were used?" value={reportForm.impact} onChange={e => setReportForm(f => ({...f, impact:e.target.value}))} rows={2} style={{...input, resize:"none"}}/>
+          </div>
+
+          <button onClick={generateReport} disabled={!reportForm.village || !reportForm.description} style={{ width:"100%", padding:"10px", borderRadius:10, border:"none", background:"rgba(56,189,248,0.15)", color:"#38bdf8", fontFamily:"'Outfit',sans-serif", fontWeight:600, fontSize:"0.82rem", cursor:"pointer", marginBottom:16 }}>
+            Generate Report
+          </button>
+
+          {generatedReport && (
+            <div>
+              <pre style={{ background:"rgba(255,255,255,0.03)", border:"1px solid rgba(56,189,248,0.15)", borderRadius:10, padding:"16px", fontSize:"0.72rem", color:"rgba(232,245,233,0.6)", fontFamily:"monospace", lineHeight:1.8, overflowX:"auto", whiteSpace:"pre-wrap", marginBottom:10 }}>
+                {generatedReport}
+              </pre>
+              <button onClick={downloadReport} style={{ width:"100%", padding:"10px", borderRadius:10, border:"1px solid rgba(56,189,248,0.25)", background:"rgba(56,189,248,0.08)", color:"#38bdf8", fontFamily:"'Outfit',sans-serif", fontWeight:600, fontSize:"0.82rem", cursor:"pointer" }}>
+                ↓ Download Report
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 // ── Main AdminPage
 export default function AdminPage() {
   const mapRef         = useRef(null);
@@ -629,8 +852,8 @@ export default function AdminPage() {
             <div style={{ padding:"14px 24px", borderBottom:"1px solid rgba(255,255,255,0.06)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
               <div style={{ display:"flex", gap:4, background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:10, padding:3 }}>
                 {[
-                  ["emergency", "🚨 Emergency", issues.filter(i => !i.assigned && i.status !== "resolved").length, "#f87171"],
-                  ["chronic",   "📋 Chronic Needs", chronicNeeds.filter(n => n.status === "open").length, "#c084fc"],
+                  ["emergency", " Emergency", issues.filter(i => !i.assigned && i.status !== "resolved").length, "#f87171"],
+                  ["chronic",   " Chronic Needs", chronicNeeds.filter(n => n.status === "open").length, "#c084fc"],
                 ].map(([tab, label, count, color]) => (
                   <button key={tab} onClick={() => setIssueTab(tab)} style={{ padding:"6px 16px", borderRadius:7, border:"none", fontFamily:"'Outfit',sans-serif", fontSize:"0.75rem", fontWeight:600, cursor:"pointer", transition:"all 0.2s", background:issueTab===tab?`${color}15`:"transparent", color:issueTab===tab?color:"rgba(232,245,233,0.35)", display:"flex", alignItems:"center", gap:6 }}>
                     {label}
@@ -762,8 +985,8 @@ export default function AdminPage() {
             <div style={{ padding:"14px 24px", borderBottom:"1px solid rgba(255,255,255,0.06)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
               <div style={{ display:"flex", gap:4, background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:10, padding:3 }}>
                 {[
-                  ["responders", "👤 Field Responders", volunteers.filter(v => v.avail).length, "#86efac"],
-                  ["leaderboard","🏆 Leaderboard",      volunteers.length,                       "#fbbf24"],
+                  ["responders", " Field Responders", volunteers.filter(v => v.avail).length, "#86efac"],
+                  ["leaderboard"," Leaderboard",      volunteers.length,                       "#fbbf24"],
                 ].map(([tab, label, count, color]) => (
                   <button key={tab} onClick={() => setVolTab(tab)} style={{ padding:"6px 16px", borderRadius:7, border:"none", fontFamily:"'Outfit',sans-serif", fontSize:"0.75rem", fontWeight:600, cursor:"pointer", transition:"all 0.2s", background:volTab===tab?`${color}15`:"transparent", color:volTab===tab?color:"rgba(232,245,233,0.35)", display:"flex", alignItems:"center", gap:6 }}>
                     {label}
@@ -805,6 +1028,10 @@ export default function AdminPage() {
               <VolunteerLeaderboard volunteers={volunteers} issues={issues}/>
             )}
           </div>
+          {/* ── CSV UPLOAD + AUTO REPORT GENERATOR ── */}
+          <DataIngestionSection showToast={showToast} />
+
+          {/*  Leaderboard */}
         </main>
       </div>
 
