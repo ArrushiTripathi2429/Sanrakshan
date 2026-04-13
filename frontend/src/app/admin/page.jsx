@@ -4,10 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { db } from "@/lib/firebase";
 import {
   collection, onSnapshot, orderBy, query, where,
-  doc, updateDoc, addDoc, serverTimestamp
-} from "firebase/firestore";
-import {
-  collection, onSnapshot, orderBy, query, where,
   doc, updateDoc, addDoc, serverTimestamp, getDocs  
 } from "firebase/firestore";
 
