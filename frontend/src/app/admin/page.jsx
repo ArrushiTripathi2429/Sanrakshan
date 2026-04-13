@@ -589,20 +589,33 @@ function VillageDrawer({ village, onClose, issues, chronicNeeds }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!village) return;
-    setLoading(true);
-    // fetch from villageProfiles by villageName
-    const q = query(
-      collection(db, "villageProfiles"),
-      where("villageName", "==", village.name)
-    );
-    getDocs(q).then(snap => {
-      if (!snap.empty) setProfile(snap.docs[0].data());
-      else setProfile(null);
-      setLoading(false);
-    }).catch(() => setLoading(false));
-  }, [village]);
+ useEffect(() => {
+  if (!village) return;
+  setLoading(true);
+  const q = query(
+    collection(db, "villageProfiles"),
+    where("cd_block", "==", village.name)
+  );
+  getDocs(q).then(snap => {
+    if (!snap.empty) {
+      const profiles = snap.docs.map(d => d.data());
+      const agg = {
+        total_villages: profiles.length,
+        total_population: profiles.reduce((s, p) => s + (p.population || 0), 0),
+        total_households: profiles.reduce((s, p) => s + (p.households || 0), 0),
+        avg_vulnerability: Math.round(profiles.reduce((s, p) => s + (p.vulnerability_score || 0), 0) / profiles.length),
+        no_power: profiles.filter(p => !p.has_power).length,
+        no_road: profiles.filter(p => !p.has_pucca_road).length,
+        no_anganwadi: profiles.filter(p => !p.has_anganwadi).length,
+        no_mobile: profiles.filter(p => !p.has_mobile_coverage).length,
+        most_vulnerable: [...profiles].sort((a, b) => b.vulnerability_score - a.vulnerability_score)[0],
+        water_sources: [...new Set(profiles.map(p => p.water_source).filter(Boolean))],
+      };
+      setProfile(agg);
+    } else setProfile(null);
+    setLoading(false);
+  }).catch(() => setLoading(false));
+}, [village]);
 
   if (!village) return null;
 
@@ -663,45 +676,63 @@ function VillageDrawer({ village, onClose, issues, chronicNeeds }) {
 
         <div style={{ padding:"16px 24px", flex:1 }}>
 
-          {loading ? (
-            <div style={{ padding:"40px 0", textAlign:"center", color:"rgba(232,245,233,0.25)", fontSize:"0.82rem" }}>Loading profile...</div>
-          ) : profile ? (
-            <>
-              {/* Demographics */}
-              <div style={{ fontSize:"0.65rem", textTransform:"uppercase", letterSpacing:"0.14em", color:"rgba(232,245,233,0.25)", marginBottom:8 }}>Demographics</div>
-              {row("Population", profile.population?.toLocaleString("en-IN"))}
-              {row("Households", profile.households)}
-              {row("SC Population", profile.sc_population)}
-              {row("CD Block", profile.cd_block)}
-              {row("Gram Panchayat", profile.gram_panchayat)}
+    {loading ? (
+  <div style={{ padding:"40px 0", textAlign:"center", color:"rgba(232,245,233,0.25)", fontSize:"0.82rem" }}>Loading profile...</div>
+) : profile ? (
+  <>
+    {/* Block Overview */}
+    <div style={{ fontSize:"0.65rem", textTransform:"uppercase", letterSpacing:"0.14em", color:"rgba(232,245,233,0.25)", marginBottom:8 }}>Block Overview</div>
+    {row("Villages in Block", profile.total_villages)}
+    {row("Total Population", profile.total_population?.toLocaleString("en-IN"))}
+    {row("Total Households", profile.total_households?.toLocaleString("en-IN"))}
+    {row("Avg Vulnerability Score", profile.avg_vulnerability, vulnColor)}
 
-              {/* Infrastructure */}
-              <div style={{ fontSize:"0.65rem", textTransform:"uppercase", letterSpacing:"0.14em", color:"rgba(232,245,233,0.25)", margin:"16px 0 8px" }}>Infrastructure</div>
-              {row("Road Type", profile.road_type)}
-              {row("Water Source", profile.water_source)}
-              {row("Nearest Town", `${profile.nearest_town} (${profile.nearest_town_dist_km} km)`)}
-              {row("Hospital Distance", profile.hospital_distance)}
-              {row("PHC Distance", profile.phc_distance)}
+    {/* Infrastructure Gaps */}
+    <div style={{ fontSize:"0.65rem", textTransform:"uppercase", letterSpacing:"0.14em", color:"rgba(232,245,233,0.25)", margin:"16px 0 8px" }}>Infrastructure Gaps</div>
+    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:12 }}>
+      {[
+        ["No Power", profile.no_power],
+        ["No Pucca Road", profile.no_road],
+        ["No Anganwadi", profile.no_anganwadi],
+        ["No Mobile Coverage", profile.no_mobile],
+      ].map(([label, count]) => (
+        <div key={label} style={{ padding:"8px 12px", borderRadius:8, background:"rgba(239,68,68,0.06)", border:"1px solid rgba(239,68,68,0.15)", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <span style={{ fontSize:"0.7rem", color:"rgba(232,245,233,0.55)" }}>{label}</span>
+          <span style={{ fontSize:"0.82rem", fontWeight:700, color:"#f87171" }}>{count}</span>
+        </div>
+      ))}
+    </div>
 
-              {/* Facilities */}
-              <div style={{ fontSize:"0.65rem", textTransform:"uppercase", letterSpacing:"0.14em", color:"rgba(232,245,233,0.25)", margin:"16px 0 8px" }}>Facilities</div>
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
-                {[
-                  ["Power", profile.has_power],
-                  ["Pucca Road", profile.has_pucca_road],
-                  ["Anganwadi", profile.has_anganwadi],
-                  ["Mobile Coverage", profile.has_mobile_coverage],
-                ].map(([label, val]) => (
-                  <div key={label} style={{ padding:"8px 12px", borderRadius:8, background: val ? "rgba(34,197,94,0.06)" : "rgba(239,68,68,0.06)", border:`1px solid ${val ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)"}`, display:"flex", alignItems:"center", gap:6 }}>
-                    <span style={{ fontSize:"0.8rem" }}>{val ? "✅" : "❌"}</span>
-                    <span style={{ fontSize:"0.7rem", color:"rgba(232,245,233,0.55)" }}>{label}</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : (
-            <div style={{ padding:"20px 0", textAlign:"center", color:"rgba(232,245,233,0.2)", fontSize:"0.8rem" }}>No AIKosh profile found for this village.</div>
-          )}
+    {/* Most Vulnerable */}
+    {profile.most_vulnerable && (
+      <>
+        <div style={{ fontSize:"0.65rem", textTransform:"uppercase", letterSpacing:"0.14em", color:"rgba(232,245,233,0.25)", margin:"16px 0 8px" }}>Most Vulnerable Village</div>
+        <div style={{ padding:"10px 12px", borderRadius:10, background:"rgba(239,68,68,0.05)", border:"1px solid rgba(239,68,68,0.15)" }}>
+          <div style={{ fontSize:"0.82rem", color:"#f0fdf4", fontWeight:600 }}>{profile.most_vulnerable.villageName}</div>
+          <div style={{ fontSize:"0.7rem", color:"rgba(232,245,233,0.4)", marginTop:3 }}>
+            Score: {profile.most_vulnerable.vulnerability_score} · Pop: {profile.most_vulnerable.population}
+          </div>
+        </div>
+      </>
+    )}
+
+    {/* Water Sources */}
+    {profile.water_sources?.length > 0 && (
+      <>
+        <div style={{ fontSize:"0.65rem", textTransform:"uppercase", letterSpacing:"0.14em", color:"rgba(232,245,233,0.25)", margin:"16px 0 8px" }}>Water Sources</div>
+        <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+          {profile.water_sources.map(ws => (
+            <span key={ws} style={{ fontSize:"0.68rem", padding:"3px 10px", borderRadius:100, background:"rgba(56,189,248,0.08)", border:"1px solid rgba(56,189,248,0.2)", color:"#38bdf8" }}>{ws}</span>
+          ))}
+        </div>
+      </>
+    )}
+  </>
+) : (
+  <div style={{ padding:"20px 0", textAlign:"center", color:"rgba(232,245,233,0.2)", fontSize:"0.8rem" }}>
+    No AIKosh data found for {village.name} block.
+  </div>
+)}
 
           {/* Active Issues */}
           {villageIssues.length > 0 && (
