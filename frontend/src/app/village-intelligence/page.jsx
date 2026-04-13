@@ -79,7 +79,7 @@ export default function VillageIntelligencePage() {
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <a href="/admin" style={{ fontSize: "0.72rem", color: "rgba(232,245,233,0.35)", textDecoration: "none", display: "flex", alignItems: "center", gap: 6 }}>← Admin</a>
             <div style={{ width: 1, height: 16, background: "rgba(255,255,255,0.08)" }} />
-            <div style={{ fontFamily: "'Fraunces',serif", fontWeight: 700, fontSize: "1rem", color: "#86efac" }}>Village Intelligence</div>
+            <div style={{ fontFamily: "'Fraunces',serif", fontWeight: 700, fontSize: "1rem", color: "#86efac" }}>Nearby Villages Information</div>
             <div style={{ fontSize: "0.62rem", color: "rgba(232,245,233,0.3)", textTransform: "uppercase", letterSpacing: "0.18em" }}>AIKosh · {villages.length} profiles</div>
           </div>
           <div style={{ display: "flex", gap: 12 }}>

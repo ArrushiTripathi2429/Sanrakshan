@@ -1044,7 +1044,7 @@ markersRef.current[v.id] = marker;
 
 
              <a href="/village-intelligence" style={{ fontSize:"0.72rem", color:"#38bdf8", textDecoration:"none", padding:"5px 12px", borderRadius:8, background:"rgba(56,189,248,0.08)", border:"1px solid rgba(56,189,248,0.2)" }}>
-               Village Intelligence
+              Nearby Village information
             </a>
             <DownloadReport issues={issues} villages={villages}/>
           </div>
