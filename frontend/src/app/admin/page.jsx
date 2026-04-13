@@ -1040,6 +1040,12 @@ markersRef.current[v.id] = marker;
               <div style={{ width:7, height:7, borderRadius:"50%", background:"#86efac", boxShadow:"0 0 8px #86efac" }}/>
               <span style={{ fontSize:"0.72rem", color:"#86efac", fontWeight:500 }}>Live</span>
             </div>
+
+
+
+             <a href="/village-intelligence" style={{ fontSize:"0.72rem", color:"#38bdf8", textDecoration:"none", padding:"5px 12px", borderRadius:8, background:"rgba(56,189,248,0.08)", border:"1px solid rgba(56,189,248,0.2)" }}>
+               Village Intelligence
+            </a>
             <DownloadReport issues={issues} villages={villages}/>
           </div>
         </header>
