@@ -761,6 +761,10 @@ export default function AdminPage() {
   const [addingChronic, setAddingChronic] = useState(false);
   const [selectedVillage, setSelectedVillage] = useState(null);
 
+  useEffect(() => {
+  window.__setSelectedVillage = setSelectedVillage;
+}, [setSelectedVillage]);
+
   const showToast = (icon, msg) => {
     setToast({ show:true, icon, msg });
     setTimeout(() => setToast(t => ({ ...t, show:false })), 3500);
@@ -900,18 +904,19 @@ export default function AdminPage() {
         iconAnchor: [hasIssue ? 7 : 4, hasIssue ? 7 : 4],
       });
 
-      const marker = L.marker([v.lat, v.lng], { icon })
-        .addTo(map)
-        .bindPopup(`
-          <div style="padding:10px;min-width:140px;">
-            <div style="font-weight:700;font-size:0.9rem;margin-bottom:4px;">${v.name}</div>
-            <div style="font-size:0.75rem;color:${hasIssue ? "#f87171" : "#86efac"}">
-              ${hasIssue ? `🚨 ${v.issues} active issue${v.issues > 1 ? "s" : ""}` : "✅ No active issues"}
-            </div>
-          </div>
-        `);
+     const marker = L.marker([v.lat, v.lng], { icon })
+  .addTo(map)
+  .bindPopup(`
+    <div style="padding:10px;min-width:140px;">
+      <div style="font-weight:700;font-size:0.9rem;margin-bottom:4px;">${v.name}</div>
+      <div style="font-size:0.75rem;color:${hasIssue ? "#f87171" : "#86efac"}">
+        ${hasIssue ? `🚨 ${v.issues} active issue${v.issues > 1 ? "s" : ""}` : "✅ No active issues"}
+      </div>
+    </div>
+  `)
+  .on("click", () => window.__setSelectedVillage(v));
 
-      markersRef.current[v.id] = marker;
+markersRef.current[v.id] = marker;
     });
   }, [villages]);
 
@@ -1269,6 +1274,14 @@ export default function AdminPage() {
           <span style={{ fontSize:"0.82rem", color:"#f0fdf4", fontWeight:500 }}>{toast.msg}</span>
         </div>
       )}
+
+       {/* VILLAGE DRAWER */}
+      <VillageDrawer
+        village={selectedVillage}
+        onClose={() => setSelectedVillage(null)}
+        issues={issues}
+        chronicNeeds={chronicNeeds}
+      />
     </>
   );
 }
