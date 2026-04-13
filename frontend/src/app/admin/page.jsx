@@ -6,6 +6,11 @@ import {
   collection, onSnapshot, orderBy, query, where,
   doc, updateDoc, addDoc, serverTimestamp
 } from "firebase/firestore";
+import {
+  collection, onSnapshot, orderBy, query, where,
+  doc, updateDoc, addDoc, serverTimestamp, getDocs  
+} from "firebase/firestore";
+
 import VILLAGES_DATA from "@/data/villages";
 import DownloadReport from "@/components/DownloadReport";
 import CommunityImpactBoard from "@/components/CommunityImpactBoard";
@@ -581,6 +586,162 @@ Report Date: ${new Date().toLocaleString("en-IN")}`;
     </div>
   );
 }
+
+
+// ── Village Detail Drawer
+function VillageDrawer({ village, onClose, issues, chronicNeeds }) {
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!village) return;
+    setLoading(true);
+    // fetch from villageProfiles by villageName
+    const q = query(
+      collection(db, "villageProfiles"),
+      where("villageName", "==", village.name)
+    );
+    getDocs(q).then(snap => {
+      if (!snap.empty) setProfile(snap.docs[0].data());
+      else setProfile(null);
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [village]);
+
+  if (!village) return null;
+
+  const villageIssues = issues.filter(i =>
+    (i.village === village.name || i.location === village.name) && i.status !== "resolved"
+  );
+  const villageNeeds = chronicNeeds.filter(n =>
+    n.village === village.name && n.status === "open"
+  );
+
+  const vulnColor = !profile ? "#94a3b8"
+    : profile.vulnerability_score >= 70 ? "#f87171"
+    : profile.vulnerability_score >= 40 ? "#fbbf24"
+    : "#86efac";
+
+  const row = (label, value, color) => (
+    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", padding:"9px 0", borderBottom:"1px solid rgba(255,255,255,0.04)" }}>
+      <span style={{ fontSize:"0.7rem", color:"rgba(232,245,233,0.35)", textTransform:"uppercase", letterSpacing:"0.1em" }}>{label}</span>
+      <span style={{ fontSize:"0.8rem", color: color || "#f0fdf4", fontWeight:500 }}>{value || "—"}</span>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div onClick={onClose} style={{ position:"fixed", inset:0, zIndex:1500, background:"rgba(0,0,0,0.4)", backdropFilter:"blur(4px)" }}/>
+
+      {/* Drawer */}
+      <div style={{ position:"fixed", top:0, right:0, bottom:0, zIndex:1600, width:380, background:"#0a1a0d", borderLeft:"1px solid rgba(134,239,172,0.12)", boxShadow:"-20px 0 60px rgba(0,0,0,0.5)", overflowY:"auto", display:"flex", flexDirection:"column" }}>
+
+        {/* Header */}
+        <div style={{ padding:"24px 24px 16px", borderBottom:"1px solid rgba(255,255,255,0.06)", position:"sticky", top:0, background:"#0a1a0d", zIndex:10 }}>
+          <div style={{ display:"flex", alignItems:"flex-start", justifyContent:"space-between", marginBottom:4 }}>
+            <div>
+              <div style={{ fontFamily:"'Fraunces',serif", fontWeight:700, fontSize:"1.2rem", color:"#f0fdf4", letterSpacing:"-0.02em" }}>{village.name}</div>
+              <div style={{ fontSize:"0.82rem", color:"rgba(232,245,233,0.35)", marginTop:2 }}>{village.hi} · {village.type}</div>
+            </div>
+            <button onClick={onClose} style={{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.08)", color:"rgba(232,245,233,0.5)", width:32, height:32, borderRadius:8, cursor:"pointer", fontSize:"1rem", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>×</button>
+          </div>
+
+          {/* Status pills */}
+          <div style={{ display:"flex", gap:6, marginTop:10, flexWrap:"wrap" }}>
+            <span style={{ fontSize:"0.65rem", padding:"3px 10px", borderRadius:100, background: villageIssues.length > 0 ? "rgba(239,68,68,0.12)" : "rgba(34,197,94,0.1)", border: `1px solid ${villageIssues.length > 0 ? "rgba(239,68,68,0.3)" : "rgba(34,197,94,0.25)"}`, color: villageIssues.length > 0 ? "#f87171" : "#86efac" }}>
+              {villageIssues.length > 0 ? `🚨 ${villageIssues.length} active issue${villageIssues.length > 1 ? "s" : ""}` : "✅ No active issues"}
+            </span>
+            {villageNeeds.length > 0 && (
+              <span style={{ fontSize:"0.65rem", padding:"3px 10px", borderRadius:100, background:"rgba(192,132,252,0.1)", border:"1px solid rgba(192,132,252,0.25)", color:"#c084fc" }}>
+                📋 {villageNeeds.length} chronic need{villageNeeds.length > 1 ? "s" : ""}
+              </span>
+            )}
+            {profile && (
+              <span style={{ fontSize:"0.65rem", padding:"3px 10px", borderRadius:100, background:`${vulnColor}15`, border:`1px solid ${vulnColor}40`, color:vulnColor }}>
+                ⚡ Vulnerability: {profile.vulnerability_score}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div style={{ padding:"16px 24px", flex:1 }}>
+
+          {loading ? (
+            <div style={{ padding:"40px 0", textAlign:"center", color:"rgba(232,245,233,0.25)", fontSize:"0.82rem" }}>Loading profile...</div>
+          ) : profile ? (
+            <>
+              {/* Demographics */}
+              <div style={{ fontSize:"0.65rem", textTransform:"uppercase", letterSpacing:"0.14em", color:"rgba(232,245,233,0.25)", marginBottom:8 }}>Demographics</div>
+              {row("Population", profile.population?.toLocaleString("en-IN"))}
+              {row("Households", profile.households)}
+              {row("SC Population", profile.sc_population)}
+              {row("CD Block", profile.cd_block)}
+              {row("Gram Panchayat", profile.gram_panchayat)}
+
+              {/* Infrastructure */}
+              <div style={{ fontSize:"0.65rem", textTransform:"uppercase", letterSpacing:"0.14em", color:"rgba(232,245,233,0.25)", margin:"16px 0 8px" }}>Infrastructure</div>
+              {row("Road Type", profile.road_type)}
+              {row("Water Source", profile.water_source)}
+              {row("Nearest Town", `${profile.nearest_town} (${profile.nearest_town_dist_km} km)`)}
+              {row("Hospital Distance", profile.hospital_distance)}
+              {row("PHC Distance", profile.phc_distance)}
+
+              {/* Facilities */}
+              <div style={{ fontSize:"0.65rem", textTransform:"uppercase", letterSpacing:"0.14em", color:"rgba(232,245,233,0.25)", margin:"16px 0 8px" }}>Facilities</div>
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+                {[
+                  ["Power", profile.has_power],
+                  ["Pucca Road", profile.has_pucca_road],
+                  ["Anganwadi", profile.has_anganwadi],
+                  ["Mobile Coverage", profile.has_mobile_coverage],
+                ].map(([label, val]) => (
+                  <div key={label} style={{ padding:"8px 12px", borderRadius:8, background: val ? "rgba(34,197,94,0.06)" : "rgba(239,68,68,0.06)", border:`1px solid ${val ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)"}`, display:"flex", alignItems:"center", gap:6 }}>
+                    <span style={{ fontSize:"0.8rem" }}>{val ? "✅" : "❌"}</span>
+                    <span style={{ fontSize:"0.7rem", color:"rgba(232,245,233,0.55)" }}>{label}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div style={{ padding:"20px 0", textAlign:"center", color:"rgba(232,245,233,0.2)", fontSize:"0.8rem" }}>No AIKosh profile found for this village.</div>
+          )}
+
+          {/* Active Issues */}
+          {villageIssues.length > 0 && (
+            <>
+              <div style={{ fontSize:"0.65rem", textTransform:"uppercase", letterSpacing:"0.14em", color:"rgba(232,245,233,0.25)", margin:"20px 0 8px" }}>Active Emergency Reports</div>
+              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                {villageIssues.map(issue => (
+                  <div key={issue.id} style={{ padding:"10px 12px", borderRadius:10, background:"rgba(239,68,68,0.05)", border:"1px solid rgba(239,68,68,0.15)" }}>
+                    <div style={{ fontSize:"0.8rem", color:"#f0fdf4", marginBottom:3 }}>{issue.title || issue.description?.slice(0, 50)}</div>
+                    <div style={{ fontSize:"0.68rem", color:"rgba(232,245,233,0.35)" }}>{issue.category} · {issue.date} · 👤 {issue.fieldWorkerName}</div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Chronic Needs */}
+          {villageNeeds.length > 0 && (
+            <>
+              <div style={{ fontSize:"0.65rem", textTransform:"uppercase", letterSpacing:"0.14em", color:"rgba(232,245,233,0.25)", margin:"20px 0 8px" }}>Chronic Needs</div>
+              <div style={{ display:"flex", flexDirection:"column", gap:6 }}>
+                {villageNeeds.map(need => (
+                  <div key={need.id} style={{ padding:"10px 12px", borderRadius:10, background:"rgba(192,132,252,0.05)", border:"1px solid rgba(192,132,252,0.15)" }}>
+                    <div style={{ fontSize:"0.8rem", color:"#f0fdf4", marginBottom:3 }}>{need.description}</div>
+                    <div style={{ fontSize:"0.68rem", color:"rgba(232,245,233,0.35)" }}>{need.category} · {need.date}</div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+        </div>
+      </div>
+    </>
+  );
+}
 // ── Main AdminPage
 export default function AdminPage() {
   const mapRef         = useRef(null);
@@ -602,6 +763,7 @@ export default function AdminPage() {
   const [volTab, setVolTab]             = useState("responders"); // "responders" | "leaderboard"
   const [chronicForm, setChronicForm]   = useState({ village:"", category:"education", description:"", _open:false });
   const [addingChronic, setAddingChronic] = useState(false);
+  const [selectedVillage, setSelectedVillage] = useState(null);
 
   const showToast = (icon, msg) => {
     setToast({ show:true, icon, msg });
