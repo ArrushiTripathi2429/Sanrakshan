@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useRef } from "react";
 import { db, auth } from "@/lib/firebase";
@@ -8,6 +8,7 @@ import {
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import VILLAGES_DATA from "@/data/villages";
+import CommunityImpactBoard from "@/components/CommunityImpactBoard";
 
 const categoryColor = {
   flood: "#67e8f9", medical: "#f87171", road: "#fbbf24",
@@ -15,17 +16,12 @@ const categoryColor = {
   water: "#38bdf8", other: "#94a3b8",
 };
 const categoryLabel = {
-  flood: " Flood", medical: " Medical", road: " Road",
-  food: "Food", education: " Education", electricity: "Electricity",
-  water: " Water", other: " Other",
+  flood: "🌊 Flood", medical: "🏥 Medical", road: "🛣️ Road",
+  food: "🌾 Food", education: "📚 Education", electricity: "⚡ Electricity",
+  water: "💧 Water", other: "📋 Other",
 };
 const severityLabel = ["", "Low", "Low-Med", "Medium", "High", "Critical"];
 const severityColor = ["", "#86efac", "#a3e635", "#fbbf24", "#fb923c", "#f87171"];
-const VOLUNTEER_SKILLS = ["Teaching", "Medical", "Legal Aid", "Agriculture", "Construction", "Counseling", "Water", "Logistics"];
-const CACHE_KEYS = {
-  tasks: "volunteer_tasks_cache_v1",
-  requests: "volunteer_requests_cache_v1",
-};
 
 function timeAgo(date) {
   if (!date) return "Just now";
@@ -36,7 +32,7 @@ function timeAgo(date) {
   return date.toLocaleDateString("en-IN");
 }
 
-// Find village coords from name 
+// ── Find village coords from name ─────────────────────────────────────────────
 function findVillageCoords(nameOrLocation) {
   if (!nameOrLocation) return null;
   const lower = nameOrLocation.toLowerCase();
@@ -46,7 +42,7 @@ function findVillageCoords(nameOrLocation) {
   return match ? { lat: match.lat, lng: match.lng, name: match.name } : null;
 }
 
-//  Task Map Component
+// ── Task Map Component ────────────────────────────────────────────────────────
 function TaskMap({ village, location }) {
   const mapRef    = useRef(null);
   const mapInst   = useRef(null);
@@ -69,12 +65,12 @@ function TaskMap({ village, location }) {
         process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY
           ? `https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY}`
           : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        { attribution: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ? "Â© Google Maps" : "Â© OpenStreetMap", maxZoom: 20 }
+        { attribution: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ? "© Google Maps" : "© OpenStreetMap", maxZoom: 20 }
       ).addTo(map);
       L.control.zoom({ position: "bottomright" }).addTo(map);
       mapInst.current = map;
 
-      // Destination marker â€” red pulsing pin
+      // Destination marker — red pulsing pin
       const destIcon = L.divIcon({
         html: `<div style="
           width:18px;height:18px;border-radius:50%;
@@ -94,7 +90,7 @@ function TaskMap({ village, location }) {
           async (pos) => {
             const { latitude: lat, longitude: lng } = pos.coords;
 
-            // Volunteer marker â€” blue dot
+            // Volunteer marker — blue dot
             const volIcon = L.divIcon({
               html: `<div style="
                 width:14px;height:14px;border-radius:50%;
@@ -105,7 +101,7 @@ function TaskMap({ village, location }) {
             });
             L.marker([lat, lng], { icon: volIcon })
               .addTo(map)
-              .bindPopup(`<span style="font-family:'Outfit',sans-serif;font-size:12px">ðŸ“ Your location</span>`);
+              .bindPopup(`<span style="font-family:'Outfit',sans-serif;font-size:12px">📍 Your location</span>`);
 
             // Fetch route from OSRM (free, no key)
             try {
@@ -132,7 +128,7 @@ function TaskMap({ village, location }) {
                 setInfo({ distance: `${km} km`, duration: mins < 60 ? `~${mins} min` : `~${Math.round(mins/60)}h ${mins%60}m` });
               }
             } catch {
-              // OSRM failed â€” just fit to destination
+              // OSRM failed — just fit to destination
               map.setView([dest.lat, dest.lng], 13);
             }
           },
@@ -153,7 +149,7 @@ function TaskMap({ village, location }) {
 
   if (!dest) return (
     <div style={{ padding: "14px 0", fontSize: "0.78rem", color: "rgba(226,237,228,0.3)" }}>
-      ðŸ“ Location not matched to a known village
+      📍 Location not matched to a known village
     </div>
   );
 
@@ -166,7 +162,7 @@ function TaskMap({ village, location }) {
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#67e8f9" }} />
             <span style={{ fontSize: "0.68rem", color: "rgba(226,237,228,0.4)" }}>You</span>
           </div>
-          <span style={{ fontSize: "0.68rem", color: "rgba(226,237,228,0.2)" }}>â†’</span>
+          <span style={{ fontSize: "0.68rem", color: "rgba(226,237,228,0.2)" }}>→</span>
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444" }} />
             <span style={{ fontSize: "0.68rem", color: "rgba(226,237,228,0.4)" }}>{dest.name}</span>
@@ -179,7 +175,7 @@ function TaskMap({ village, location }) {
           </div>
         )}
         {gpsError && (
-          <span style={{ fontSize: "0.68rem", color: "rgba(226,237,228,0.25)" }}>GPS unavailable Â· showing destination</span>
+          <span style={{ fontSize: "0.68rem", color: "rgba(226,237,228,0.25)" }}>GPS unavailable · showing destination</span>
         )}
       </div>
 
@@ -200,120 +196,44 @@ export default function VolunteerPage() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [filter, setFilter] = useState("active");
+  const [sidebarView, setSidebarView] = useState("dashboard"); // dashboard | tasks | completed | history
   const [completing, setCompleting] = useState(false);
   const [available, setAvailable] = useState(true);
-  const [incomingRequests, setIncomingRequests] = useState([]);
-  const [profileBusy, setProfileBusy] = useState(false);
-  const [syncHint, setSyncHint] = useState("");
-  const [profile, setProfile] = useState({
-    skills: [],
-    languages: "",
-    availabilitySchedule: "",
-  });
   const user = auth.currentUser;
 
-  //  Auth state 
+  // ── Auth state ────────────────────────────────────────────────────────────
   const [currentUser, setCurrentUser] = useState(auth.currentUser);
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, u => setCurrentUser(u));
     return () => unsub();
   }, []);
 
-  useEffect(() => {
-    try {
-      const cachedTasks = localStorage.getItem(CACHE_KEYS.tasks);
-      const cachedRequests = localStorage.getItem(CACHE_KEYS.requests);
-      if (cachedTasks) {
-        setTasks(JSON.parse(cachedTasks));
-        setLoading(false);
-      }
-      if (cachedRequests) {
-        setIncomingRequests(JSON.parse(cachedRequests));
-      }
-    } catch (e) {
-      console.error("Volunteer cache read failed:", e);
-    }
-  }, []);
-
-  // Load volunteer profile data
-  useEffect(() => {
-    if (!currentUser?.uid) return;
-    const unsub = onSnapshot(
-      doc(db, "users", currentUser.uid),
-      (snap) => {
-        const data = snap.data() || {};
-        setAvailable(data.available !== false);
-        setProfile({
-          skills: Array.isArray(data.skills) ? data.skills : [],
-          languages: Array.isArray(data.languages) ? data.languages.join(", ") : (data.languages || ""),
-          availabilitySchedule: data.availabilitySchedule || "",
-        });
-      },
-      (error) => {
-        console.error("Unable to read volunteer profile:", error);
-      }
-    );
-    return () => unsub();
-  }, [currentUser?.uid]);
-
-  // â”€â”€ Real-time listener: tasks assigned to this volunteer
+  // ── Real-time listener: tasks assigned to this volunteer ──────────────────
   useEffect(() => {
     const q = query(
       collection(db, "reports"),
       where("assigned", "==", true)
     );
 
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        const docs = snap.docs
-          .map((d) => ({
-            id: d.id,
-            ...d.data(),
-            assignedAt: d.data().assignedAt?.toDate
-              ? timeAgo(d.data().assignedAt.toDate())
-              : d.data().createdAt?.toDate
-              ? timeAgo(d.data().createdAt.toDate())
-              : "Just now",
-          }))
-          .filter((d) => !currentUser?.displayName || d.assignedTo === currentUser.displayName);
-        setTasks(docs);
-        setLoading(false);
-        localStorage.setItem(CACHE_KEYS.tasks, JSON.stringify(docs));
-      },
-      (error) => {
-        console.error("Unable to read assigned tasks:", error);
-        setSyncHint("Connection is slow. Showing cached tasks.");
-        setLoading(false);
-      }
-    );
+    const unsub = onSnapshot(q, (snap) => {
+      const userName = currentUser?.displayName || "";
+      const docs = snap.docs
+        .map((d) => ({
+          id: d.id,
+          ...d.data(),
+          assignedAt: d.data().assignedAt?.toDate
+            ? timeAgo(d.data().assignedAt.toDate())
+            : d.data().createdAt?.toDate
+            ? timeAgo(d.data().createdAt.toDate())
+            : "Just now",
+        }))
+        .filter((d) => !currentUser?.displayName || d.assignedTo === currentUser.displayName);
+      setTasks(docs);
+      setLoading(false);
+    });
 
     return () => unsub();
   }, [currentUser]);
-
-  // Incoming chronic-need requests for this volunteer
-  useEffect(() => {
-    if (!currentUser?.uid) return;
-    const q = query(
-      collection(db, "needRequests"),
-      where("volunteerId", "==", currentUser.uid)
-    );
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        const docs = snap.docs
-          .map((d) => ({ id: d.id, ...d.data() }))
-          .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-        setIncomingRequests(docs);
-        localStorage.setItem(CACHE_KEYS.requests, JSON.stringify(docs));
-      },
-      (error) => {
-        console.error("Unable to read need requests:", error);
-        setSyncHint("Connection is slow. Showing cached requests.");
-      }
-    );
-    return () => unsub();
-  }, [currentUser?.uid]);
 
   const filtered = tasks.filter((t) =>
     filter === "all" ? true : filter === "active" ? t.status === "assigned" : t.status === "resolved"
@@ -329,58 +249,6 @@ export default function VolunteerPage() {
       try {
         await updateDoc(doc(db, "users", currentUser.uid), { available: next });
       } catch (e) { console.error(e); }
-    }
-  };
-
-  const toggleSkill = (skill) => {
-    setProfile((prev) => ({
-      ...prev,
-      skills: prev.skills.includes(skill)
-        ? prev.skills.filter((s) => s !== skill)
-        : [...prev.skills, skill],
-    }));
-  };
-
-  const saveProfile = async () => {
-    if (!currentUser?.uid) return;
-    setProfileBusy(true);
-    try {
-      const languages = profile.languages
-        .split(",")
-        .map((x) => x.trim())
-        .filter(Boolean);
-      await updateDoc(doc(db, "users", currentUser.uid), {
-        skills: profile.skills,
-        languages,
-        availabilitySchedule: profile.availabilitySchedule || "Flexible",
-      });
-      setSyncHint("✓ Profile saved!");
-      setTimeout(() => setSyncHint(""), 3000);
-    } catch (e) {
-      console.error(e);
-      setSyncHint("❌ Save failed. Check connection.");
-    } finally {
-      setProfileBusy(false);
-    }
-  };
-
-  const handleRequestDecision = async (req, decision) => {
-    try {
-      await updateDoc(doc(db, "needRequests", req.id), {
-        status: decision,
-        respondedAt: serverTimestamp(),
-        volunteerName: currentUser?.displayName || "Volunteer",
-      });
-      if (req.needId && decision === "accepted") {
-        await updateDoc(doc(db, "chronicNeeds", req.needId), {
-          status: "in_progress",
-          assignedVolunteerId: currentUser?.uid,
-          assignedVolunteerName: currentUser?.displayName || "Volunteer",
-          assignedAt: serverTimestamp(),
-        });
-      }
-    } catch (e) {
-      console.error(e);
     }
   };
 
@@ -468,10 +336,10 @@ export default function VolunteerPage() {
       <div className="vl-wrap">
         <aside className="vl-sidebar">
           <div className="vl-logo">Sanrakshan<span>.</span></div>
-          <button className="vl-nav active"><span>â–³</span> Dashboard</button>
-          <button className="vl-nav"><span>â—‰</span> My Tasks</button>
-          <button className="vl-nav"><span>âœ“</span> Completed</button>
-          <button className="vl-nav"><span>â—·</span> History</button>
+          <button className={`vl-nav ${sidebarView==="dashboard"?"active":""}`} onClick={()=>setSidebarView("dashboard")}><span>△</span> Dashboard</button>
+          <button className={`vl-nav ${sidebarView==="tasks"?"active":""}`} onClick={()=>{setSidebarView("tasks");setFilter("active");}}><span>◉</span> My Tasks</button>
+          <button className={`vl-nav ${sidebarView==="completed"?"active":""}`} onClick={()=>{setSidebarView("completed");setFilter("completed");}}><span>✓</span> Completed</button>
+          <button className={`vl-nav ${sidebarView==="history"?"active":""}`} onClick={()=>{setSidebarView("history");setFilter("all");}}><span>◷</span> History</button>
           <div className="vl-avail" style={{ marginTop: 12 }}>
             <span className="vl-avail-label">Available</span>
             <button
@@ -505,7 +373,12 @@ export default function VolunteerPage() {
           <div className="vl-header">
             <div>
               <div className="vl-greeting">Volunteer Dashboard</div>
-              <div className="vl-title">Your <em>Tasks</em></div>
+              <div className="vl-title">
+                {sidebarView==="tasks" ? <>My <em>Tasks</em></> :
+                 sidebarView==="completed" ? <>Completed <em>Missions</em></> :
+                 sidebarView==="history" ? <>Full <em>History</em></> :
+                 <>Your <em>Tasks</em></>}
+              </div>
             </div>
             <div style={{
               fontSize: "0.72rem", padding: "6px 14px", borderRadius: 6,
@@ -514,14 +387,9 @@ export default function VolunteerPage() {
               background: available ? "rgba(134,239,172,0.06)" : "transparent",
               letterSpacing: "0.1em", textTransform: "uppercase",
             }}>
-              {available ? "â— Available" : "â—‹ Unavailable"}
+              {available ? "● Available" : "○ Unavailable"}
             </div>
           </div>
-          {syncHint && (
-            <div style={{ marginBottom: 10, fontSize: "0.75rem", color: "#fbbf24" }}>
-              {syncHint}
-            </div>
-          )}
 
           <div className="vl-stats">
             <div className="vl-stat">
@@ -538,79 +406,13 @@ export default function VolunteerPage() {
             </div>
           </div>
 
-          <div className="vl-task" style={{ marginBottom: 12, cursor: "default" }}>
-            <div className="vl-task-title" style={{ marginBottom: 10 }}>Skill Profile</div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
-              {VOLUNTEER_SKILLS.map((s) => {
-                const selected = profile.skills.includes(s);
-                return (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => toggleSkill(s)}
-                    style={{
-                      border: selected ? "1px solid rgba(251,191,36,0.35)" : "1px solid rgba(255,255,255,0.08)",
-                      background: selected ? "rgba(251,191,36,0.1)" : "rgba(255,255,255,0.02)",
-                      color: selected ? "#fbbf24" : "rgba(226,237,228,0.55)",
-                      borderRadius: 999,
-                      padding: "5px 10px",
-                      cursor: "pointer",
-                      fontSize: "0.72rem",
-                    }}
-                  >
-                    {s}
-                  </button>
-                );
-              })}
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10 }}>
-              <input
-                value={profile.languages}
-                onChange={(e) => setProfile((p) => ({ ...p, languages: e.target.value }))}
-                placeholder="Languages (comma separated)"
-                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "8px 10px", color: "#f0f7f1" }}
-              />
-              <input
-                value={profile.availabilitySchedule}
-                onChange={(e) => setProfile((p) => ({ ...p, availabilitySchedule: e.target.value }))}
-                placeholder="Availability (e.g. weekends)"
-                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "8px 10px", color: "#f0f7f1" }}
-              />
-            </div>
-            <button className="vl-btn-secondary" onClick={saveProfile} disabled={profileBusy}>
-              {profileBusy ? "Saving..." : "Save Profile"}
-            </button>
-          </div>
-
-          <div className="vl-task" style={{ marginBottom: 18, cursor: "default" }}>
-            <div className="vl-task-title" style={{ marginBottom: 8 }}>Need Requests</div>
-            {incomingRequests.length === 0 ? (
-              <div style={{ fontSize: "0.78rem", color: "rgba(226,237,228,0.35)" }}>
-                No requests yet.
-              </div>
-            ) : (
-              incomingRequests.map((req) => (
-                <div key={req.id} style={{ padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                  <div style={{ fontSize: "0.84rem", color: "#f0f7f1", marginBottom: 4 }}>{req.needCategory || "Need"} Â· {req.village}</div>
-                  <div style={{ fontSize: "0.76rem", color: "rgba(226,237,228,0.45)", marginBottom: 8 }}>{req.needDescription}</div>
-                  {req.status === "pending" ? (
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <button className="vl-btn-primary" onClick={() => handleRequestDecision(req, "accepted")}>Accept</button>
-                      <button className="vl-btn-secondary" onClick={() => handleRequestDecision(req, "declined")}>Decline</button>
-                    </div>
-                  ) : (
-                    <span style={{ fontSize: "0.7rem", color: req.status === "accepted" ? "#86efac" : "#f87171" }}>
-                      {req.status === "accepted" ? "Accepted" : "Declined"}
-                    </span>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-
           <div className="vl-tabs">
             {[["active", "Active"], ["completed", "Completed"], ["all", "All"]].map(([val, label]) => (
-              <button key={val} className={`vl-tab ${filter === val ? "active" : ""}`} onClick={() => { setFilter(val); setSelected(null); }}>
+              <button key={val} className={`vl-tab ${filter === val ? "active" : ""}`} onClick={() => {
+                setFilter(val);
+                setSelected(null);
+                setSidebarView(val === "active" ? "tasks" : val === "completed" ? "completed" : "history");
+              }}>
                 {label}
               </button>
             ))}
@@ -624,7 +426,7 @@ export default function VolunteerPage() {
               </div>
             ) : filtered.length === 0 ? (
               <div className="vl-empty">
-                <div className="vl-empty-icon">ðŸ“‹</div>
+                <div className="vl-empty-icon">📋</div>
                 <div className="vl-empty-text">
                   No {filter === "all" ? "" : filter} tasks right now.<br />
                   Admin will assign tasks based on your skills.
@@ -649,11 +451,11 @@ export default function VolunteerPage() {
                       )}
                     </div>
                     <div className="vl-task-title">{task.title || task.description?.slice(0, 60)}</div>
-                    <div className="vl-task-loc"><span>ðŸ“</span> {task.village || task.location}</div>
+                    <div className="vl-task-loc"><span>📍</span> {task.village || task.location}</div>
                   </div>
                   <div className="vl-task-right">
                     {task.status === "resolved"
-                      ? <span className="vl-done-badge">âœ“ Done</span>
+                      ? <span className="vl-done-badge">✓ Done</span>
                       : <span style={{ fontSize: "0.65rem", padding: "3px 9px", borderRadius: 4, background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.2)", color: "#fbbf24" }}>Assigned</span>
                     }
                     <span className="vl-time">{task.assignedAt}</span>
@@ -665,7 +467,7 @@ export default function VolunteerPage() {
                     <div className="vl-detail-desc">{task.description}</div>
                     {task.affected && (
                       <div style={{ fontSize: "0.78rem", color: "rgba(226,237,228,0.35)", marginBottom: 14 }}>
-                        ðŸ‘¥ ~{task.affected} people affected
+                        👥 ~{task.affected} people affected
                       </div>
                     )}
 
@@ -683,17 +485,17 @@ export default function VolunteerPage() {
                       ) : (
                         <div className="vl-detail-actions">
                           <button className="vl-btn-primary" onClick={(e) => { e.stopPropagation(); handleComplete(task.id); }}>
-                            âœ“ Mark as Complete
+                            ✓ Mark as Complete
                           </button>
                           <button className="vl-btn-secondary" onClick={(e) => { e.stopPropagation(); window.open(`https://maps.google.com?q=${encodeURIComponent(task.village || task.location)}`); }}>
-                            ðŸ—º Open in Maps
+                            🗺 Open in Maps
                           </button>
                         </div>
                       )
                     )}
                     {task.status === "resolved" && (
                       <div style={{ fontSize: "0.78rem", color: "rgba(134,239,172,0.5)", display: "flex", alignItems: "center", gap: 6 }}>
-                        <span>âœ“</span> Task completed Â· Thank you for your service
+                        <span>✓</span> Task completed · Thank you for your service
                       </div>
                     )}
                   </div>
@@ -701,9 +503,18 @@ export default function VolunteerPage() {
               </div>
             ))}
           </div>
+
+          {/* COMMUNITY IMPACT BOARD */}
+          <div style={{ marginTop: 32, background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 18, overflow: "hidden" }}>
+            <div style={{ padding: "18px 24px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: "1rem" }}>🏆</span>
+              <span style={{ fontFamily: "'Fraunces', serif", fontWeight: 600, fontSize: "0.95rem", color: "#f0f7f1" }}>Community Impact Board</span>
+            </div>
+            <CommunityImpactBoard highlightUid={currentUser?.displayName} compact={true} />
+          </div>
+
         </main>
       </div>
     </>
   );
 }
-
