@@ -466,7 +466,7 @@ Report Date: ${new Date().toLocaleString("en-IN")}`;
       <div style={{ padding:"14px 24px", borderBottom:"1px solid rgba(255,255,255,0.06)", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
         <div style={{ display:"flex", alignItems:"center", gap:8 }}>
           <span style={{ width:3, height:14, background:"#38bdf8", borderRadius:2, display:"inline-block" }}/>
-          <span style={{ fontSize:"0.68rem", textTransform:"uppercase", letterSpacing:"0.18em", color:"rgba(232,245,233,0.35)" }}>Data Ingestion · NGO & Survey Data</span>
+          <span style={{ fontSize:"0.68rem", textTransform:"uppercase", letterSpacing:"0.18em", color:"rgba(232,245,233,0.35)" }}> NGO & Survey Data And Auto Report Generation</span>
         </div>
         <div style={{ display:"flex", gap:4, background:"rgba(255,255,255,0.03)", border:"1px solid rgba(255,255,255,0.06)", borderRadius:10, padding:3 }}>
           {[["csv"," CSV Import"],["report"," Auto Report"]].map(([tab, label]) => (
@@ -659,16 +659,16 @@ function VillageDrawer({ village, onClose, issues, chronicNeeds }) {
           {/* Status pills */}
           <div style={{ display:"flex", gap:6, marginTop:10, flexWrap:"wrap" }}>
             <span style={{ fontSize:"0.65rem", padding:"3px 10px", borderRadius:100, background: villageIssues.length > 0 ? "rgba(239,68,68,0.12)" : "rgba(34,197,94,0.1)", border: `1px solid ${villageIssues.length > 0 ? "rgba(239,68,68,0.3)" : "rgba(34,197,94,0.25)"}`, color: villageIssues.length > 0 ? "#f87171" : "#86efac" }}>
-              {villageIssues.length > 0 ? `🚨 ${villageIssues.length} active issue${villageIssues.length > 1 ? "s" : ""}` : "✅ No active issues"}
+              {villageIssues.length > 0 ? ` ${villageIssues.length} active issue${villageIssues.length > 1 ? "s" : ""}` : " No active issues"}
             </span>
             {villageNeeds.length > 0 && (
               <span style={{ fontSize:"0.65rem", padding:"3px 10px", borderRadius:100, background:"rgba(192,132,252,0.1)", border:"1px solid rgba(192,132,252,0.25)", color:"#c084fc" }}>
-                📋 {villageNeeds.length} chronic need{villageNeeds.length > 1 ? "s" : ""}
+                 {villageNeeds.length} chronic need{villageNeeds.length > 1 ? "s" : ""}
               </span>
             )}
             {profile && (
               <span style={{ fontSize:"0.65rem", padding:"3px 10px", borderRadius:100, background:`${vulnColor}15`, border:`1px solid ${vulnColor}40`, color:vulnColor }}>
-                ⚡ Vulnerability: {profile.vulnerability_score}
+                 Vulnerability: {profile.vulnerability_score}
               </span>
             )}
           </div>
@@ -941,7 +941,7 @@ export default function AdminPage() {
     <div style="padding:10px;min-width:140px;">
       <div style="font-weight:700;font-size:0.9rem;margin-bottom:4px;">${v.name}</div>
       <div style="font-size:0.75rem;color:${hasIssue ? "#f87171" : "#86efac"}">
-        ${hasIssue ? `🚨 ${v.issues} active issue${v.issues > 1 ? "s" : ""}` : "✅ No active issues"}
+        ${hasIssue ? `🚨 ${v.issues} active issue${v.issues > 1 ? "s" : ""}` : " No active issues"}
       </div>
     </div>
   `)
@@ -1258,7 +1258,18 @@ markersRef.current[v.id] = marker;
                         <div style={{ width:36, height:36, borderRadius:"50%", flexShrink:0, background:vol.color, display:"flex", alignItems:"center", justifyContent:"center", fontSize:"0.78rem", fontWeight:700, color:"#080e0a" }}>{vol.init}</div>
                         <div style={{ flex:1, minWidth:0 }}>
                           <div style={{ fontSize:"0.82rem", fontWeight:600, color:"#f0fdf4", whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis" }}>{vol.name}</div>
-                          <div style={{ fontSize:"0.68rem", color:"rgba(232,245,233,0.35)" }}>{vol.avail ? "Available" : "Busy"}</div>
+                          <div style={{ fontSize:"0.68rem", color:"rgba(232,245,233,0.35)", marginBottom: vol.skills?.length ? 4 : 0 }}>
+                            {vol.avail ? "Available" : "Busy"}
+                            {vol.availabilitySchedule ? ` · ${vol.availabilitySchedule}` : ""}
+                          </div>
+                          {Array.isArray(vol.skills) && vol.skills.length > 0 && (
+                            <div style={{ display:"flex", flexWrap:"wrap", gap:3 }}>
+                              {vol.skills.slice(0,3).map(s => (
+                                <span key={s} style={{ fontSize:"0.6rem", padding:"1px 7px", borderRadius:100, background:"rgba(134,239,172,0.08)", border:"1px solid rgba(134,239,172,0.15)", color:"#86efac" }}>{s}</span>
+                              ))}
+                              {vol.skills.length > 3 && <span style={{ fontSize:"0.6rem", color:"rgba(232,245,233,0.3)" }}>+{vol.skills.length-3}</span>}
+                            </div>
+                          )}
                         </div>
                         <div style={{ width:8, height:8, borderRadius:"50%", flexShrink:0, background:vol.avail?"#22c55e":"#f59e0b", boxShadow:vol.avail?"0 0 6px #22c55e":"none" }}/>
                       </div>

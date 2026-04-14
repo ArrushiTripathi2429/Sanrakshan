@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useRef } from "react";
 import { db, auth } from "@/lib/firebase";
@@ -69,12 +69,12 @@ function TaskMap({ village, location }) {
         process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY
           ? `https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY}`
           : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        { attribution: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ? "© Google Maps" : "© OpenStreetMap", maxZoom: 20 }
+        { attribution: process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ? "Â© Google Maps" : "Â© OpenStreetMap", maxZoom: 20 }
       ).addTo(map);
       L.control.zoom({ position: "bottomright" }).addTo(map);
       mapInst.current = map;
 
-      // Destination marker — red pulsing pin
+      // Destination marker â€” red pulsing pin
       const destIcon = L.divIcon({
         html: `<div style="
           width:18px;height:18px;border-radius:50%;
@@ -94,7 +94,7 @@ function TaskMap({ village, location }) {
           async (pos) => {
             const { latitude: lat, longitude: lng } = pos.coords;
 
-            // Volunteer marker — blue dot
+            // Volunteer marker â€” blue dot
             const volIcon = L.divIcon({
               html: `<div style="
                 width:14px;height:14px;border-radius:50%;
@@ -105,7 +105,7 @@ function TaskMap({ village, location }) {
             });
             L.marker([lat, lng], { icon: volIcon })
               .addTo(map)
-              .bindPopup(`<span style="font-family:'Outfit',sans-serif;font-size:12px">📍 Your location</span>`);
+              .bindPopup(`<span style="font-family:'Outfit',sans-serif;font-size:12px">ðŸ“ Your location</span>`);
 
             // Fetch route from OSRM (free, no key)
             try {
@@ -132,7 +132,7 @@ function TaskMap({ village, location }) {
                 setInfo({ distance: `${km} km`, duration: mins < 60 ? `~${mins} min` : `~${Math.round(mins/60)}h ${mins%60}m` });
               }
             } catch {
-              // OSRM failed — just fit to destination
+              // OSRM failed â€” just fit to destination
               map.setView([dest.lat, dest.lng], 13);
             }
           },
@@ -153,7 +153,7 @@ function TaskMap({ village, location }) {
 
   if (!dest) return (
     <div style={{ padding: "14px 0", fontSize: "0.78rem", color: "rgba(226,237,228,0.3)" }}>
-      📍 Location not matched to a known village
+      ðŸ“ Location not matched to a known village
     </div>
   );
 
@@ -166,7 +166,7 @@ function TaskMap({ village, location }) {
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#67e8f9" }} />
             <span style={{ fontSize: "0.68rem", color: "rgba(226,237,228,0.4)" }}>You</span>
           </div>
-          <span style={{ fontSize: "0.68rem", color: "rgba(226,237,228,0.2)" }}>→</span>
+          <span style={{ fontSize: "0.68rem", color: "rgba(226,237,228,0.2)" }}>â†’</span>
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#ef4444" }} />
             <span style={{ fontSize: "0.68rem", color: "rgba(226,237,228,0.4)" }}>{dest.name}</span>
@@ -179,7 +179,7 @@ function TaskMap({ village, location }) {
           </div>
         )}
         {gpsError && (
-          <span style={{ fontSize: "0.68rem", color: "rgba(226,237,228,0.25)" }}>GPS unavailable · showing destination</span>
+          <span style={{ fontSize: "0.68rem", color: "rgba(226,237,228,0.25)" }}>GPS unavailable Â· showing destination</span>
         )}
       </div>
 
@@ -256,7 +256,7 @@ export default function VolunteerPage() {
     return () => unsub();
   }, [currentUser?.uid]);
 
-  // ── Real-time listener: tasks assigned to this volunteer
+  // â”€â”€ Real-time listener: tasks assigned to this volunteer
   useEffect(() => {
     const q = query(
       collection(db, "reports"),
@@ -354,8 +354,11 @@ export default function VolunteerPage() {
         languages,
         availabilitySchedule: profile.availabilitySchedule || "Flexible",
       });
+      setSyncHint("✓ Profile saved!");
+      setTimeout(() => setSyncHint(""), 3000);
     } catch (e) {
       console.error(e);
+      setSyncHint("❌ Save failed. Check connection.");
     } finally {
       setProfileBusy(false);
     }
@@ -465,10 +468,10 @@ export default function VolunteerPage() {
       <div className="vl-wrap">
         <aside className="vl-sidebar">
           <div className="vl-logo">Sanrakshan<span>.</span></div>
-          <button className="vl-nav active"><span>△</span> Dashboard</button>
-          <button className="vl-nav"><span>◉</span> My Tasks</button>
-          <button className="vl-nav"><span>✓</span> Completed</button>
-          <button className="vl-nav"><span>◷</span> History</button>
+          <button className="vl-nav active"><span>â–³</span> Dashboard</button>
+          <button className="vl-nav"><span>â—‰</span> My Tasks</button>
+          <button className="vl-nav"><span>âœ“</span> Completed</button>
+          <button className="vl-nav"><span>â—·</span> History</button>
           <div className="vl-avail" style={{ marginTop: 12 }}>
             <span className="vl-avail-label">Available</span>
             <button
@@ -511,7 +514,7 @@ export default function VolunteerPage() {
               background: available ? "rgba(134,239,172,0.06)" : "transparent",
               letterSpacing: "0.1em", textTransform: "uppercase",
             }}>
-              {available ? "● Available" : "○ Unavailable"}
+              {available ? "â— Available" : "â—‹ Unavailable"}
             </div>
           </div>
           {syncHint && (
@@ -588,7 +591,7 @@ export default function VolunteerPage() {
             ) : (
               incomingRequests.map((req) => (
                 <div key={req.id} style={{ padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                  <div style={{ fontSize: "0.84rem", color: "#f0f7f1", marginBottom: 4 }}>{req.needCategory || "Need"} · {req.village}</div>
+                  <div style={{ fontSize: "0.84rem", color: "#f0f7f1", marginBottom: 4 }}>{req.needCategory || "Need"} Â· {req.village}</div>
                   <div style={{ fontSize: "0.76rem", color: "rgba(226,237,228,0.45)", marginBottom: 8 }}>{req.needDescription}</div>
                   {req.status === "pending" ? (
                     <div style={{ display: "flex", gap: 8 }}>
@@ -621,7 +624,7 @@ export default function VolunteerPage() {
               </div>
             ) : filtered.length === 0 ? (
               <div className="vl-empty">
-                <div className="vl-empty-icon">📋</div>
+                <div className="vl-empty-icon">ðŸ“‹</div>
                 <div className="vl-empty-text">
                   No {filter === "all" ? "" : filter} tasks right now.<br />
                   Admin will assign tasks based on your skills.
@@ -646,11 +649,11 @@ export default function VolunteerPage() {
                       )}
                     </div>
                     <div className="vl-task-title">{task.title || task.description?.slice(0, 60)}</div>
-                    <div className="vl-task-loc"><span>📍</span> {task.village || task.location}</div>
+                    <div className="vl-task-loc"><span>ðŸ“</span> {task.village || task.location}</div>
                   </div>
                   <div className="vl-task-right">
                     {task.status === "resolved"
-                      ? <span className="vl-done-badge">✓ Done</span>
+                      ? <span className="vl-done-badge">âœ“ Done</span>
                       : <span style={{ fontSize: "0.65rem", padding: "3px 9px", borderRadius: 4, background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.2)", color: "#fbbf24" }}>Assigned</span>
                     }
                     <span className="vl-time">{task.assignedAt}</span>
@@ -662,7 +665,7 @@ export default function VolunteerPage() {
                     <div className="vl-detail-desc">{task.description}</div>
                     {task.affected && (
                       <div style={{ fontSize: "0.78rem", color: "rgba(226,237,228,0.35)", marginBottom: 14 }}>
-                        👥 ~{task.affected} people affected
+                        ðŸ‘¥ ~{task.affected} people affected
                       </div>
                     )}
 
@@ -680,17 +683,17 @@ export default function VolunteerPage() {
                       ) : (
                         <div className="vl-detail-actions">
                           <button className="vl-btn-primary" onClick={(e) => { e.stopPropagation(); handleComplete(task.id); }}>
-                            ✓ Mark as Complete
+                            âœ“ Mark as Complete
                           </button>
                           <button className="vl-btn-secondary" onClick={(e) => { e.stopPropagation(); window.open(`https://maps.google.com?q=${encodeURIComponent(task.village || task.location)}`); }}>
-                            🗺 Open in Maps
+                            ðŸ—º Open in Maps
                           </button>
                         </div>
                       )
                     )}
                     {task.status === "resolved" && (
                       <div style={{ fontSize: "0.78rem", color: "rgba(134,239,172,0.5)", display: "flex", alignItems: "center", gap: 6 }}>
-                        <span>✓</span> Task completed · Thank you for your service
+                        <span>âœ“</span> Task completed Â· Thank you for your service
                       </div>
                     )}
                   </div>
@@ -703,3 +706,4 @@ export default function VolunteerPage() {
     </>
   );
 }
+
