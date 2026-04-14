@@ -9,6 +9,7 @@ from routes.village_profiles import router as village_profiles_router
 from routes.overpass import router as overpass_router
 from routes.volunteer_match import router as volunteer_match_router
 from routes.vision import router as vision_router
+from routes.discrepancy import router as discrepancy_router
 
 load_dotenv()
 
@@ -29,6 +30,7 @@ app.include_router(village_profiles_router, prefix="/api")
 app.include_router(overpass_router, prefix="/api")
 app.include_router(volunteer_match_router, prefix="/api")
 app.include_router(vision_router, prefix="/api")
+app.include_router(discrepancy_router, prefix="/api")
 
 @app.get("/")
 def root():

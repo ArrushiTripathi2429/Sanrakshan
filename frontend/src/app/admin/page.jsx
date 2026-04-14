@@ -779,6 +779,7 @@ export default function AdminPage() {
   const [villages, setVillages]         = useState(() => VILLAGES_DATA.map(v => ({ ...v, issues:0 })));
   const [issues, setIssues]             = useState([]);
   const [loadingIssues, setLoadingIssues] = useState(true);
+  const [discrepancies, setDiscrepancies] = useState({}); // { reportId: { alert, census_field, census_value } }
   const [volunteers, setVolunteers]     = useState([]);
   const [chronicNeeds, setChronicNeeds] = useState([]);
   const [selVol, setSelVol]             = useState(null);
@@ -874,6 +875,22 @@ export default function AdminPage() {
         } else setIssues(docs);
 
         setLoadingIssues(false);
+
+        // Check discrepancies against AIKosh census data
+        const pendingForDisc = docs.filter(i => !i.assigned && i.status !== "resolved");
+        if (pendingForDisc.length > 0) {
+          Promise.all(pendingForDisc.map(r =>
+            fetch("http://localhost:8000/api/discrepancy/check", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ report_id: r.id, category: r.category, village: r.village || "", location: r.location || "" }),
+            }).then(res => res.json()).catch(() => null)
+          )).then(results => {
+            const map = {};
+            results.forEach(r => { if (r?.has_discrepancy) map[r.report_id] = { alert: r.alert, census_field: r.census_field, census_value: r.census_value }; });
+            setDiscrepancies(map);
+          });
+        }
 
         // Update village issue counts
         const countMap = docs.reduce((a, r) => {
@@ -1129,6 +1146,7 @@ markersRef.current[v.id] = marker;
                   {issues.map(issue => {
                     const isAssigned = issue.assigned || issue.status === "resolved";
                     const ss = issue.score != null ? scoreBadge(issue.score) : null;
+                    const disc = discrepancies[issue.id];
                     return (
                       <div key={issue.id} onClick={() => !isAssigned && setModal({ open:true, issue })} style={{ padding:"16px 20px", borderRadius:14, position:"relative", overflow:"hidden", cursor:isAssigned?"default":"pointer", border:"1px solid rgba(255,255,255,0.06)", background:isAssigned?"rgba(255,255,255,0.01)":"rgba(255,255,255,0.02)", opacity:isAssigned?0.5:1, transition:"all 0.2s" }}>
                         <div style={{ position:"absolute", top:0, left:0, width:3, height:"100%", background:sevDot[issue.severity]||"#86efac", borderRadius:"3px 0 0 3px" }}/>
@@ -1157,6 +1175,17 @@ markersRef.current[v.id] = marker;
                             {ss && <span style={{ fontSize:"0.65rem", fontWeight:700, padding:"3px 10px", borderRadius:100, background:ss.bg, border:`1px solid ${ss.bd}`, color:ss.c }}>⚡ {issue.score}</span>}
                           </div>
                         </div>
+                        {/* DISCREPANCY ALERT */}
+                        {disc && (
+                          <div style={{ marginTop:10, padding:"8px 12px", borderRadius:8, background:"rgba(251,191,36,0.06)", border:"1px solid rgba(251,191,36,0.2)", display:"flex", alignItems:"flex-start", gap:8 }}>
+                            <span style={{ fontSize:"0.85rem", flexShrink:0 }}>⚠️</span>
+                            <div>
+                              <div style={{ fontSize:"0.68rem", fontWeight:700, color:"#fbbf24", marginBottom:2, textTransform:"uppercase", letterSpacing:"0.08em" }}>Infrastructure Conflict Detected</div>
+                              <div style={{ fontSize:"0.72rem", color:"rgba(232,245,233,0.55)", lineHeight:1.5 }}>{disc.alert}</div>
+                              <div style={{ fontSize:"0.65rem", color:"rgba(251,191,36,0.5)", marginTop:3 }}>Census: {disc.census_field?.replace(/_/g," ")} = {disc.census_value}</div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
