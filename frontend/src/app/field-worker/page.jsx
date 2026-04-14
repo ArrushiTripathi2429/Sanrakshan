@@ -85,6 +85,7 @@ const CACHE_KEYS = {
 
 export default function FieldWorkerPage() {
   const [mode, setMode] = useState(null);
+  const [sidebarView, setSidebarView] = useState("reports"); // reports | new-report | community | alerts
   const [form, setForm] = useState(emptyForm);
   const [reports, setReports] = useState([]);
   const [submitted, setSubmitted] = useState(false);
@@ -642,9 +643,10 @@ const saveReport = async (data) => {
         {/* SIDEBAR */}
         <aside className="fw-sidebar">
           <div className="fw-logo">Sanrakshan <span>/ Field</span></div>
-          <button className="fw-nav active">My Reports</button>
-          <button className="fw-nav">Map View</button>
-          <button className="fw-nav">Alerts</button>
+          <button className={`fw-nav ${sidebarView==="reports"?"active":""}`} onClick={()=>{setSidebarView("reports");setMode(null);}}>My Reports</button>
+          <button className={`fw-nav ${sidebarView==="new-report"?"active":""}`} onClick={()=>{setSidebarView("new-report");setMode(null);}}>⊕ New Report</button>
+          <button className={`fw-nav ${sidebarView==="community"?"active":""}`} onClick={()=>{setSidebarView("community");setMode(null);}}>◎ Community Needs</button>
+          <button className={`fw-nav ${sidebarView==="alerts"?"active":""}`} onClick={()=>{setSidebarView("alerts");setMode(null);}}>◷ My Requests</button>
           <div className="fw-sidebar-footer">
             <div className="fw-user">
               <div className="fw-avatar">{user?.displayName?.[0] || "F"}</div>
@@ -660,7 +662,12 @@ const saveReport = async (data) => {
         <main className="fw-main">
           <div className="fw-header">
             <div className="fw-greeting">Field Worker Dashboard</div>
-            <div className="fw-title">Report an Issue</div>
+            <div className="fw-title">
+              {sidebarView==="new-report" ? "New Report" :
+               sidebarView==="community" ? "Community Needs" :
+               sidebarView==="alerts" ? "My Requests" :
+               "My Reports"}
+            </div>
           </div>
           {syncError && (
             <div style={{ marginBottom: 12, fontSize: "0.75rem", color: "#fbbf24" }}>
@@ -668,7 +675,8 @@ const saveReport = async (data) => {
             </div>
           )}
 
-          {/* MODE PICKER */}
+          {/* MODE PICKER — show on new-report or reports view */}
+          {(sidebarView==="new-report"||sidebarView==="reports") && (
           <div className="fw-mode-pick">
             <div
               className={`fw-mode-card voice-card ${mode === "voice" ? "active-voice" : ""}`}
@@ -687,6 +695,7 @@ const saveReport = async (data) => {
               <div className="fw-mode-desc">For literate users – describe the issue in detail with category, location and photos.</div>
             </div>
           </div>
+          )} {/* end mode picker conditional */}
 
           {/* VOICE PANEL */}
           {mode === "voice" && (
@@ -896,6 +905,7 @@ const saveReport = async (data) => {
           )}
 
           {/* COMMUNITY NEEDS PANEL */}
+          {sidebarView==="community" && (
           <div className="fw-panel">
             <div className="fw-panel-title">Community Needs Registry</div>
             <div className="fw-panel-sub">Track long-term needs and coordinate volunteers in real time.</div>
@@ -1036,8 +1046,10 @@ const saveReport = async (data) => {
               ))
             )}
           </div>
+          )} {/* end community needs conditional */}
 
           {/* RECENT REPORTS */}
+          {sidebarView==="reports" && (
           <div className="fw-reports">
             <div className="fw-sec-head">
               <div className="fw-sec-title">My Recent Reports</div>
@@ -1080,6 +1092,38 @@ const saveReport = async (data) => {
               ))
             )}
           </div>
+          )} {/* end recent reports conditional */}
+
+          {/* MY REQUESTS VIEW */}
+          {sidebarView==="alerts" && (
+            <div className="fw-reports">
+              <div className="fw-sec-head">
+                <div className="fw-sec-title">My Volunteer Requests</div>
+              </div>
+              {needRequests.length === 0 ? (
+                <div className="fw-empty">
+                  <div className="fw-empty-icon">📬</div>
+                  <div className="fw-empty-text">No outgoing requests yet.<br/>Use Community Needs to find and request volunteers.</div>
+                </div>
+              ) : needRequests.map(r => (
+                <div key={r.id} className="fw-report-row">
+                  <div className="fw-rr-left">
+                    <div className="fw-rr-dot" style={{ background: r.status==="accepted"?"#86efac":r.status==="declined"?"#f87171":"#fbbf24" }} />
+                    <div>
+                      <div className="fw-rr-title">{r.needCategory} · {r.village}</div>
+                      <div className="fw-rr-loc">Volunteer: {r.volunteerName || "—"}</div>
+                    </div>
+                  </div>
+                  <div className="fw-rr-right">
+                    <span className="fw-badge" style={{ color: r.status==="accepted"?"#86efac":r.status==="declined"?"#f87171":"#fbbf24", border:"1px solid rgba(255,255,255,0.1)", background:"rgba(255,255,255,0.04)" }}>
+                      {r.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
         </main>
       </div>
     </>
