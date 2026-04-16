@@ -1,10 +1,10 @@
-
 # all gemini related stuff here. 
 import os
 import json
 import re
 import asyncio
 import google.generativeai as genai
+from groq import Groq
 from pathlib import Path
 from dotenv import load_dotenv
 from lib.queue import gemini_limiter
@@ -12,9 +12,10 @@ from lib.queue import gemini_limiter
 load_dotenv()
 
 genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+groq_client = Groq(api_key=os.environ["GROQ_API_KEY"])
 
-# ── Model
-model = genai.GenerativeModel("gemini-2.0-flash")
+# ── Models
+model = genai.GenerativeModel("gemini-2.5-flash")
 _gemini_concurrency = asyncio.Semaphore(4)
 
 
@@ -81,23 +82,28 @@ async def generate_content_with_backoff(payload, retries: int = 2):
 
 async def analyze_audio(audio_bytes: bytes, mime_type: str = "audio/webm") -> dict:
     """
-    Send audio to Gemini and extract structured disaster report.
-    Gemini 1.5 Flash supports audio input natively.
+    Step 1: Transcribe audio via Groq Whisper (free, fast, handles Hinglish)
+    Step 2: Extract structured report via Gemini (existing flow)
     """
-    prompt = EXTRACT_PROMPT.format(input="[Audio transcription follows]")
+    transcription = await asyncio.to_thread(
+        groq_client.audio.transcriptions.create,
+        file=("audio.webm", audio_bytes, mime_type),
+        model="whisper-large-v3-turbo",
+        language="hi",  # handles Hindi + English mix
+    )
 
-    response = await generate_content_with_backoff([
-        prompt,
-        {"mime_type": mime_type, "data": audio_bytes},
-    ])
+    transcript_text = transcription.text
+    if not transcript_text.strip():
+        raise ValueError("Could not transcribe audio — file may be empty or corrupted")
 
-    return _parse_json_response(response.text)
+    # pass transcript to Gemini for structuring
+    return await analyze_text(transcript_text)
 
 
 async def analyze_text(text: str) -> dict:
     """
     Send text description to Gemini and extract structured disaster report.
-    Used as fallback when audio processing isn't available.
+    Used directly for text input, and as second stage after Groq audio transcription.
     """
     prompt = EXTRACT_PROMPT.format(input=text)
     response = await generate_content_with_backoff(prompt)
@@ -135,12 +141,10 @@ async def score_priorities(reports: list[dict]) -> list[dict]:
 
 def _parse_json_response(text: str) -> dict | list:
     """Strip markdown fences and parse JSON from Gemini response."""
-
     cleaned = re.sub(r"```(?:json)?\s*", "", text).replace("```", "").strip()
     try:
         return json.loads(cleaned)
     except json.JSONDecodeError:
-    
         match = re.search(r"(\{.*\}|\[.*\])", cleaned, re.DOTALL)
         if match:
             return json.loads(match.group(1))
