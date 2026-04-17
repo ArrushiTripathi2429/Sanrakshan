@@ -7,7 +7,7 @@ Returns top 3 volunteers with score + reasoning.
 import math
 from fastapi import APIRouter
 from pydantic import BaseModel
-from lib.gemini import generate_content_with_backoff
+from lib.gemini import _call_ai, _parse_json_response
 
 router = APIRouter()
 
@@ -90,14 +90,11 @@ async def get_skill_scores(task_desc: str, category: str, volunteers: list[Volun
     )
 
     try:
-        response = await generate_content_with_backoff(prompt)
-        import json, re
-        text = re.sub(r"```(?:json)?\s*", "", response.text).replace("```", "").strip()
-        scores = json.loads(text)
+        raw = await _call_ai(prompt)
+        scores = _parse_json_response(raw)
         return {s["volunteer_id"]: s for s in scores}
     except Exception as e:
         print(f"Skill match error: {e}")
-        # Fallback: neutral scores
         return {v.id: {"volunteer_id": v.id, "skill_score": 50, "reason": "Could not assess"} for v in volunteers}
 
 

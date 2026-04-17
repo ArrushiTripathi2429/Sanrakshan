@@ -5,7 +5,8 @@ damage severity, and recommended resources.
 """
 
 from fastapi import APIRouter, UploadFile, File, HTTPException
-from lib.gemini import generate_content_with_backoff, _parse_json_response
+from lib.gemini import _parse_json_response, gemini_model, _gemini_concurrency
+import asyncio
 
 router = APIRouter()
 
@@ -47,10 +48,11 @@ async def analyze_photo(photo: UploadFile = File(...)):
         if not mime_type.startswith("image/"):
             raise HTTPException(status_code=400, detail="File must be an image")
 
-        response = await generate_content_with_backoff([
-            VISION_PROMPT,
-            {"mime_type": mime_type, "data": image_bytes},
-        ])
+        async with _gemini_concurrency:
+            response = await asyncio.to_thread(gemini_model.generate_content, [
+                VISION_PROMPT,
+                {"mime_type": mime_type, "data": image_bytes},
+            ])
 
         result = _parse_json_response(response.text)
         return {"success": True, "data": result}
