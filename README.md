@@ -1,14 +1,14 @@
 # Sanrakshan — Smart Resource Allocation System
 
-> Built for **Google Solution Challenge 2026** · Raebareli, Uttar Pradesh, India
+> Built for  · Raebareli, Uttar Pradesh, India
 
-Sanrakshan is a three-layer disaster relief coordination system that connects flood-affected communities with the right volunteers — powered by Gemini AI, grounded in real government data, and proactive through live intelligence feeds.
+Sanrakshan is a Five-layer  relief coordination system that connects affected communities with the right volunteers and NGOs— powered by Gemini AI, grounded in real government data, and proactive through live intelligence feeds.
 
 ---
 
 ## The Problem
 
-In rural disaster zones like Raebareli, a flood-affected villager doesn't have time to fill forms. Emergency responders don't know which village needs help most urgently. Volunteers get assigned randomly, not by skill or proximity. And relief systems are purely reactive — they wait for someone to report before acting.
+In rural zones like Raebareli, a  villager who is in some kind of emergency situation doesn't have time to fill forms. Emergency responders don't know which village needs help most urgently. Volunteers get assigned randomly, not by skill or proximity. And relief systems are purely reactive — they wait for someone to report before acting.
 
 **Sanrakshan solves this with three connected data layers and a unified AI intelligence engine.**
 
@@ -45,11 +45,11 @@ In rural disaster zones like Raebareli, a flood-affected villager doesn't have t
 
 | Layer | Technology |
 |---|---|
-| Frontend | Next.js 14, Tailwind CSS, Leaflet, Recharts |
+| Frontend | Next.js 14, Tailwind CSS, Leaflet, Recharts, Aceternity UI |
 | Backend | FastAPI (Python) |
 | Database | Firebase Firestore (real-time) |
 | Auth | Firebase Authentication (Google Sign-in) |
-| AI — Voice & Text | Gemini 2.0 Flash |
+| AI — Voice & Text | Gemini 2.0 Flash | Groq API |
 | AI — Vision | Gemini 2.0 Flash (multimodal) |
 | Maps | Google Maps + Leaflet |
 | Routing | OSRM (free, no API key) |
