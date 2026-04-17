@@ -892,12 +892,21 @@ export default function AdminPage() {
           });
         }
 
-        // Update village issue counts
+        // Update village issue counts — fuzzy match on village name
         const countMap = docs.reduce((a, r) => {
-          if (r.village) a[r.village] = (a[r.village] || 0) + 1;
+          const key = (r.village || r.location || "").toLowerCase().trim();
+          if (key) a[key] = (a[key] || 0) + 1;
           return a;
         }, {});
-        setVillages(prev => prev.map(v => ({ ...v, issues: countMap[v.name] || 0 })));
+        setVillages(prev => prev.map(v => ({
+          ...v,
+          issues: countMap[v.name.toLowerCase().trim()] ||
+                  // partial match: report name contains village name or vice versa
+                  Object.entries(countMap).reduce((sum, [k, cnt]) => {
+                    if (k.includes(v.name.toLowerCase().trim()) || v.name.toLowerCase().trim().includes(k)) return sum + cnt;
+                    return sum;
+                  }, 0),
+        })));
       }
     );
     return () => unsub();
