@@ -15,9 +15,15 @@ load_dotenv()
 
 app = FastAPI(title="Sanrakshan AI Backend")
 
+allow_origins=[
+    "https://sanrakshann.netlify.app",  
+    "http://localhost:3000",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=allow_origins,  
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
