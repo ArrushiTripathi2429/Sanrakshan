@@ -15,7 +15,7 @@ genai.configure(api_key=os.environ["GEMINI_API_KEY"])
 groq_client = Groq(api_key=os.environ["GROQ_API_KEY"])
 
 # ── Models
-model = genai.GenerativeModel("gemini-2.5-flash")
+model = genai.GenerativeModel("gemini-2.0-flash")
 _gemini_concurrency = asyncio.Semaphore(4)
 
 
@@ -64,9 +64,6 @@ Return ONLY a JSON array (no markdown):
 
 
 async def generate_content_with_backoff(payload, retries: int = 2):
-    """
-    Queue/throttle Gemini calls with bounded concurrency and retry.
-    """
     last_error = None
     for attempt in range(retries + 1):
         await gemini_limiter.acquire()
@@ -74,6 +71,7 @@ async def generate_content_with_backoff(payload, retries: int = 2):
             async with _gemini_concurrency:
                 return await asyncio.to_thread(model.generate_content, payload)
         except Exception as e:
+            print(f"Gemini attempt {attempt} failed: {type(e).__name__}: {e}")  # ← ADD THIS LINE
             last_error = e
             if attempt < retries:
                 await asyncio.sleep(1.5 * (attempt + 1))
