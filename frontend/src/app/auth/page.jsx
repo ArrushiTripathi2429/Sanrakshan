@@ -1,6 +1,6 @@
 "use client";
+import { useState, Suspense } from "react";
 
-import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
 import { GoogleAuthProvider, signInWithPopup, updateProfile } from "firebase/auth";
@@ -39,7 +39,7 @@ const roleRedirects = {
   "volunteer": "/volunteer",
 };
 
-export default function AuthPage() {
+ function AuthContent() {
   const router = useRouter();
   const params = useSearchParams();
   const roleParam = params.get("role") || "field-worker";
@@ -343,5 +343,15 @@ export default function AuthPage() {
         </div>
       </div>
     </>
+
+    
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense fallback={null}>
+      <AuthContent />
+    </Suspense>
   );
 }
