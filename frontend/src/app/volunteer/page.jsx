@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useRef } from "react";
 import { db, auth } from "@/lib/firebase";
@@ -32,7 +32,7 @@ function timeAgo(date) {
   return date.toLocaleDateString("en-IN");
 }
 
-// ── Find village coords from name ─────────────────────────────────────────────
+// ── Find village coords from name 
 function findVillageCoords(nameOrLocation) {
   if (!nameOrLocation) return null;
   const lower = nameOrLocation.toLowerCase();
@@ -42,7 +42,7 @@ function findVillageCoords(nameOrLocation) {
   return match ? { lat: match.lat, lng: match.lng, name: match.name } : null;
 }
 
-// ── Task Map Component ────────────────────────────────────────────────────────
+// ── Task Map Component
 function TaskMap({ village, location }) {
   const mapRef    = useRef(null);
   const mapInst   = useRef(null);
@@ -199,13 +199,19 @@ export default function VolunteerPage() {
   const [sidebarView, setSidebarView] = useState("dashboard"); // dashboard | tasks | completed | history
   const [completing, setCompleting] = useState(false);
   const [available, setAvailable] = useState(true);
+    const [mounted, setMounted] = useState(false);
   const user = auth.currentUser;
 
-  // ── Auth state ────────────────────────────────────────────────────────────
+  // ── Auth state
   const [currentUser, setCurrentUser] = useState(auth.currentUser);
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, u => setCurrentUser(u));
     return () => unsub();
+  }, []);
+
+
+   useEffect(() => {
+    setMounted(true); 
   }, []);
 
   // ── Real-time listener: tasks assigned to this volunteer ──────────────────
@@ -359,14 +365,14 @@ export default function VolunteerPage() {
             </button>
           </div>
           <div className="vl-sidebar-footer">
-            <div className="vl-user">
-              <div className="vl-avatar">{currentUser?.displayName?.[0] || "V"}</div>
-              <div>
-                <div className="vl-user-name">{currentUser?.displayName || "Volunteer"}</div>
-                <div className="vl-user-role">Volunteer</div>
-              </div>
-            </div>
-          </div>
+  <div className="vl-user">
+    <div className="vl-avatar">{mounted ? (currentUser?.displayName?.[0] || "V") : "V"}</div>
+    <div>
+      <div className="vl-user-name">{mounted ? (currentUser?.displayName || "Volunteer") : "Volunteer"}</div>
+      <div className="vl-user-role">Volunteer</div>
+    </div>
+  </div>
+</div>
         </aside>
 
         <main className="vl-main">
