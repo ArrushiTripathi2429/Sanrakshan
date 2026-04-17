@@ -343,6 +343,17 @@ const saveReport = async (data) => {
         const formData = new FormData();
         formData.append("audio", blob, "recording.webm");
 
+        // Attach GPS coordinates if available (for location fallback)
+        if (navigator.geolocation) {
+          await new Promise(resolve => {
+            navigator.geolocation.getCurrentPosition(
+              pos => { formData.append("lat", pos.coords.latitude); formData.append("lng", pos.coords.longitude); resolve(); },
+              () => resolve(), // GPS unavailable — continue without
+              { timeout: 3000 }
+            );
+          });
+        }
+
         const res = await fetch("http://localhost:8000/api/analyze/audio", {
           method: "POST",
           body: formData,

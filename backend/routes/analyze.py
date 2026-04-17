@@ -7,12 +7,35 @@ This avoids Gemini audio quota issues entirely.
 
 import os
 import tempfile
-from fastapi import APIRouter, UploadFile, File, HTTPException
+import math
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from pydantic import BaseModel
 from lib.gemini import analyze_text
 from lib.pii import redact_report
 
 router = APIRouter()
+
+# Village coordinates for GPS fallback
+VILLAGES = [
+    {"name":"Rae Bareli","lat":26.2303,"lng":81.2409},{"name":"Lalganj","lat":26.2477,"lng":81.7098},
+    {"name":"Salon","lat":26.1586,"lng":81.4369},{"name":"Dalmau","lat":25.9939,"lng":81.0450},
+    {"name":"Unchahar","lat":26.1013,"lng":81.3594},{"name":"Bachhrawan","lat":26.4710,"lng":81.1127},
+    {"name":"Harchandpur","lat":26.3933,"lng":81.0831},{"name":"Tiloi","lat":26.0419,"lng":81.5134},
+    {"name":"Sareni","lat":26.2450,"lng":81.0311},{"name":"Maharajganj","lat":26.1316,"lng":81.4574},
+    {"name":"Khiri","lat":26.3100,"lng":81.1900},{"name":"Jagatpur","lat":26.1500,"lng":81.1500},
+    {"name":"Amawa","lat":26.1800,"lng":81.2100},{"name":"Parsadepur","lat":26.3800,"lng":81.2600},
+    {"name":"Dalmau","lat":25.9939,"lng":81.0450},{"name":"Gauriganj","lat":26.4743,"lng":81.5791},
+]
+
+def _nearest_village(lat: float, lng: float) -> str:
+    """Find nearest village name from GPS coordinates."""
+    best, best_dist = None, float("inf")
+    for v in VILLAGES:
+        d = math.sqrt((v["lat"]-lat)**2 + (v["lng"]-lng)**2)
+        if d < best_dist:
+            best_dist = d
+            best = v["name"]
+    return best
 
 
 def get_groq_client():
@@ -70,7 +93,11 @@ class TextReportRequest(BaseModel):
 
 
 @router.post("/analyze/audio")
-async def analyze_audio_report(audio: UploadFile = File(...)):
+async def analyze_audio_report(
+    audio: UploadFile = File(...),
+    lat: float = None,
+    lng: float = None,
+):
     """
     Step 1: Groq Whisper transcribes audio (Hindi/English/Bhojpuri)
     Step 2: Gemini extracts structured report from transcript
@@ -91,11 +118,21 @@ async def analyze_audio_report(audio: UploadFile = File(...)):
                 detail=f"Audio transcription failed: {str(e)}. Make sure GROQ_API_KEY is set."
             )
 
-        # Step 2: Extract structured data with Gemini
+        # Step 2: Extract structured data with Groq/Gemini
         result = await analyze_text(transcript)
         if isinstance(result, dict):
             result = redact_report(result)
-            result["transcript"] = transcript  # include transcript for transparency
+            result["transcript"] = transcript
+
+            # GPS fallback: if location not detected, use coordinates
+            location = result.get("location", "").strip()
+            if (not location or location.lower() in ["", "unknown", "raebareli district", "raebareli"]) and lat and lng:
+                nearest = _nearest_village(lat, lng)
+                if nearest:
+                    result["location"] = nearest
+                    result["location_source"] = "gps"
+            else:
+                result["location_source"] = "voice"
 
         return {"success": True, "data": result}
 
