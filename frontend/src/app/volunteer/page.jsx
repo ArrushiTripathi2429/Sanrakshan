@@ -6,7 +6,8 @@ import {
   collection, query, where, onSnapshot,
   doc, updateDoc, serverTimestamp,
 } from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { useRouter } from "next/navigation";
 import VILLAGES_DATA from "@/data/villages";
 import CommunityImpactBoard from "@/components/CommunityImpactBoard";
 
@@ -32,7 +33,6 @@ function timeAgo(date) {
   return date.toLocaleDateString("en-IN");
 }
 
-// ── Find village coords from name 
 function findVillageCoords(nameOrLocation) {
   if (!nameOrLocation) return null;
   const lower = nameOrLocation.toLowerCase();
@@ -42,11 +42,10 @@ function findVillageCoords(nameOrLocation) {
   return match ? { lat: match.lat, lng: match.lng, name: match.name } : null;
 }
 
-// ── Task Map Component
 function TaskMap({ village, location }) {
-  const mapRef    = useRef(null);
-  const mapInst   = useRef(null);
-  const [info, setInfo] = useState(null); // { distance, duration }
+  const mapRef = useRef(null);
+  const mapInst = useRef(null);
+  const [info, setInfo] = useState(null);
   const [gpsError, setGpsError] = useState(false);
 
   const dest = findVillageCoords(village || location);
@@ -70,13 +69,8 @@ function TaskMap({ village, location }) {
       L.control.zoom({ position: "bottomright" }).addTo(map);
       mapInst.current = map;
 
-      // Destination marker — red pulsing pin
       const destIcon = L.divIcon({
-        html: `<div style="
-          width:18px;height:18px;border-radius:50%;
-          background:#ef4444;border:3px solid white;
-          box-shadow:0 0 0 4px rgba(239,68,68,0.3),0 2px 8px rgba(0,0,0,0.4);
-        "></div>`,
+        html: `<div style="width:18px;height:18px;border-radius:50%;background:#ef4444;border:3px solid white;box-shadow:0 0 0 4px rgba(239,68,68,0.3),0 2px 8px rgba(0,0,0,0.4);"></div>`,
         iconSize: [18, 18], iconAnchor: [9, 9], className: "",
       });
       L.marker([dest.lat, dest.lng], { icon: destIcon })
@@ -84,26 +78,18 @@ function TaskMap({ village, location }) {
         .bindPopup(`<b style="font-family:'Outfit',sans-serif">${dest.name}</b><br><span style="font-size:11px;color:#94a3b8">Destination</span>`)
         .openPopup();
 
-      // Try to get volunteer's GPS and draw route
       if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           async (pos) => {
             const { latitude: lat, longitude: lng } = pos.coords;
-
-            // Volunteer marker — blue dot
             const volIcon = L.divIcon({
-              html: `<div style="
-                width:14px;height:14px;border-radius:50%;
-                background:#67e8f9;border:3px solid white;
-                box-shadow:0 0 0 3px rgba(103,232,249,0.3),0 2px 6px rgba(0,0,0,0.3);
-              "></div>`,
+              html: `<div style="width:14px;height:14px;border-radius:50%;background:#67e8f9;border:3px solid white;box-shadow:0 0 0 3px rgba(103,232,249,0.3),0 2px 6px rgba(0,0,0,0.3);"></div>`,
               iconSize: [14, 14], iconAnchor: [7, 7], className: "",
             });
             L.marker([lat, lng], { icon: volIcon })
               .addTo(map)
               .bindPopup(`<span style="font-family:'Outfit',sans-serif;font-size:12px">📍 Your location</span>`);
 
-            // Fetch route from OSRM (free, no key)
             try {
               const res = await fetch(
                 `https://router.project-osrm.org/route/v1/driving/${lng},${lat};${dest.lng},${dest.lat}?overview=full&geometries=geojson`
@@ -112,30 +98,17 @@ function TaskMap({ village, location }) {
               if (data.routes?.[0]) {
                 const route = data.routes[0];
                 const coords = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
-
-                // Draw route polyline
-                L.polyline(coords, {
-                  color: "#fbbf24", weight: 4, opacity: 0.85,
-                  dashArray: null,
-                }).addTo(map);
-
-                // Fit map to show both points
+                L.polyline(coords, { color: "#fbbf24", weight: 4, opacity: 0.85 }).addTo(map);
                 map.fitBounds(L.latLngBounds([[lat, lng], [dest.lat, dest.lng]]).pad(0.2));
-
-                // Distance + ETA
                 const km = (route.distance / 1000).toFixed(1);
                 const mins = Math.ceil(route.duration / 60);
-                setInfo({ distance: `${km} km`, duration: mins < 60 ? `~${mins} min` : `~${Math.round(mins/60)}h ${mins%60}m` });
+                setInfo({ distance: `${km} km`, duration: mins < 60 ? `~${mins} min` : `~${Math.round(mins / 60)}h ${mins % 60}m` });
               }
             } catch {
-              // OSRM failed — just fit to destination
               map.setView([dest.lat, dest.lng], 13);
             }
           },
-          () => {
-            setGpsError(true);
-            map.setView([dest.lat, dest.lng], 13);
-          },
+          () => { setGpsError(true); map.setView([dest.lat, dest.lng], 13); },
           { timeout: 6000 }
         );
       } else {
@@ -155,7 +128,6 @@ function TaskMap({ village, location }) {
 
   return (
     <div style={{ marginBottom: 16 }}>
-      {/* Info bar */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
@@ -178,13 +150,7 @@ function TaskMap({ village, location }) {
           <span style={{ fontSize: "0.68rem", color: "rgba(226,237,228,0.25)" }}>GPS unavailable · showing destination</span>
         )}
       </div>
-
-      {/* Map */}
-      <div style={{
-        height: 220, borderRadius: 12, overflow: "hidden",
-        border: "1px solid rgba(251,191,36,0.15)",
-        boxShadow: "0 4px 20px rgba(0,0,0,0.3)",
-      }}>
+      <div style={{ height: 220, borderRadius: 12, overflow: "hidden", border: "1px solid rgba(251,191,36,0.15)", boxShadow: "0 4px 20px rgba(0,0,0,0.3)" }}>
         <div ref={mapRef} style={{ width: "100%", height: "100%" }} />
       </div>
     </div>
@@ -196,33 +162,28 @@ export default function VolunteerPage() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
   const [filter, setFilter] = useState("active");
-  const [sidebarView, setSidebarView] = useState("dashboard"); // dashboard | tasks | completed | history
+  const [sidebarView, setSidebarView] = useState("dashboard");
   const [completing, setCompleting] = useState(false);
   const [available, setAvailable] = useState(true);
-    const [mounted, setMounted] = useState(false);
-  const user = auth.currentUser;
-
-  // ── Auth state
+  const [mounted, setMounted] = useState(false);
   const [currentUser, setCurrentUser] = useState(auth.currentUser);
+  const router = useRouter();
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, u => setCurrentUser(u));
     return () => unsub();
   }, []);
 
-
-   useEffect(() => {
-    setMounted(true); 
+  useEffect(() => {
+    setMounted(true);
   }, []);
 
-  // ── Real-time listener: tasks assigned to this volunteer ──────────────────
   useEffect(() => {
     const q = query(
       collection(db, "reports"),
       where("assigned", "==", true)
     );
-
     const unsub = onSnapshot(q, (snap) => {
-      const userName = currentUser?.displayName || "";
       const docs = snap.docs
         .map((d) => ({
           id: d.id,
@@ -237,7 +198,6 @@ export default function VolunteerPage() {
       setTasks(docs);
       setLoading(false);
     });
-
     return () => unsub();
   }, [currentUser]);
 
@@ -245,7 +205,7 @@ export default function VolunteerPage() {
     filter === "all" ? true : filter === "active" ? t.status === "assigned" : t.status === "resolved"
   );
 
-  const activeCount    = tasks.filter((t) => t.status === "assigned").length;
+  const activeCount = tasks.filter((t) => t.status === "assigned").length;
   const completedCount = tasks.filter((t) => t.status === "resolved").length;
 
   const handleToggleAvailable = async () => {
@@ -270,6 +230,11 @@ export default function VolunteerPage() {
     finally { setCompleting(false); }
   };
 
+  const handleLogout = async () => {
+    await signOut(auth);
+    router.push("/");
+  };
+
   return (
     <>
       <style>{`
@@ -290,6 +255,8 @@ export default function VolunteerPage() {
         .vl-user-role { font-size: 0.63rem; color: rgba(226,237,228,0.28); text-transform: uppercase; letter-spacing: 0.08em; }
         .vl-avail { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; margin-top: 8px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 8px; }
         .vl-avail-label { font-size: 0.72rem; color: rgba(226,237,228,0.35); letter-spacing: 0.06em; text-transform: uppercase; }
+        .vl-logout-btn { width: 100%; padding: 8px 12px; margin-top: 8px; background: none; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; color: rgba(226,237,228,0.35); font-size: 0.75rem; cursor: pointer; font-family: 'Outfit', sans-serif; text-align: left; transition: all 0.2s; }
+        .vl-logout-btn:hover { color: #f87171; border-color: rgba(248,113,113,0.25); background: rgba(248,113,113,0.05); }
         .vl-main { padding: 36px 40px; overflow-y: auto; }
         .vl-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 32px; opacity: 0; animation: vlUp 0.5s ease 0.1s forwards; }
         .vl-greeting { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.15em; color: rgba(226,237,228,0.25); margin-bottom: 5px; }
@@ -342,10 +309,10 @@ export default function VolunteerPage() {
       <div className="vl-wrap">
         <aside className="vl-sidebar">
           <div className="vl-logo">Sanrakshan<span>.</span></div>
-          <button className={`vl-nav ${sidebarView==="dashboard"?"active":""}`} onClick={()=>setSidebarView("dashboard")}><span>△</span> Dashboard</button>
-          <button className={`vl-nav ${sidebarView==="tasks"?"active":""}`} onClick={()=>{setSidebarView("tasks");setFilter("active");}}><span>◉</span> My Tasks</button>
-          <button className={`vl-nav ${sidebarView==="completed"?"active":""}`} onClick={()=>{setSidebarView("completed");setFilter("completed");}}><span>✓</span> Completed</button>
-          <button className={`vl-nav ${sidebarView==="history"?"active":""}`} onClick={()=>{setSidebarView("history");setFilter("all");}}><span>◷</span> History</button>
+          <button className={`vl-nav ${sidebarView === "dashboard" ? "active" : ""}`} onClick={() => setSidebarView("dashboard")}><span>△</span> Dashboard</button>
+          <button className={`vl-nav ${sidebarView === "tasks" ? "active" : ""}`} onClick={() => { setSidebarView("tasks"); setFilter("active"); }}><span>◉</span> My Tasks</button>
+          <button className={`vl-nav ${sidebarView === "completed" ? "active" : ""}`} onClick={() => { setSidebarView("completed"); setFilter("completed"); }}><span>✓</span> Completed</button>
+          <button className={`vl-nav ${sidebarView === "history" ? "active" : ""}`} onClick={() => { setSidebarView("history"); setFilter("all"); }}><span>◷</span> History</button>
           <div className="vl-avail" style={{ marginTop: 12 }}>
             <span className="vl-avail-label">Available</span>
             <button
@@ -365,14 +332,15 @@ export default function VolunteerPage() {
             </button>
           </div>
           <div className="vl-sidebar-footer">
-  <div className="vl-user">
-    <div className="vl-avatar">{mounted ? (currentUser?.displayName?.[0] || "V") : "V"}</div>
-    <div>
-      <div className="vl-user-name">{mounted ? (currentUser?.displayName || "Volunteer") : "Volunteer"}</div>
-      <div className="vl-user-role">Volunteer</div>
-    </div>
-  </div>
-</div>
+            <div className="vl-user">
+              <div className="vl-avatar">{mounted ? (currentUser?.displayName?.[0] || "V") : "V"}</div>
+              <div>
+                <div className="vl-user-name">{mounted ? (currentUser?.displayName || "Volunteer") : "Volunteer"}</div>
+                <div className="vl-user-role">Volunteer</div>
+              </div>
+            </div>
+            <button className="vl-logout-btn" onClick={handleLogout}>↩ Logout</button>
+          </div>
         </aside>
 
         <main className="vl-main">
@@ -380,10 +348,10 @@ export default function VolunteerPage() {
             <div>
               <div className="vl-greeting">Volunteer Dashboard</div>
               <div className="vl-title">
-                {sidebarView==="tasks" ? <>My <em>Tasks</em></> :
-                 sidebarView==="completed" ? <>Completed <em>Missions</em></> :
-                 sidebarView==="history" ? <>Full <em>History</em></> :
-                 <>Your <em>Tasks</em></>}
+                {sidebarView === "tasks" ? <>My <em>Tasks</em></> :
+                  sidebarView === "completed" ? <>Completed <em>Missions</em></> :
+                  sidebarView === "history" ? <>Full <em>History</em></> :
+                  <>Your <em>Tasks</em></>}
               </div>
             </div>
             <div style={{
@@ -476,12 +444,9 @@ export default function VolunteerPage() {
                         👥 ~{task.affected} people affected
                       </div>
                     )}
-
-                    {/* DESTINATION MAP */}
                     {task.status === "assigned" && (
                       <TaskMap village={task.village} location={task.location} />
                     )}
-
                     {task.status === "assigned" && (
                       completing ? (
                         <div className="vl-completing">
@@ -510,7 +475,6 @@ export default function VolunteerPage() {
             ))}
           </div>
 
-          {/* COMMUNITY IMPACT BOARD */}
           <div style={{ marginTop: 32, background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 18, overflow: "hidden" }}>
             <div style={{ padding: "18px 24px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", gap: 8 }}>
               <span style={{ fontSize: "1rem" }}>🏆</span>
@@ -518,7 +482,6 @@ export default function VolunteerPage() {
             </div>
             <CommunityImpactBoard highlightUid={currentUser?.displayName} compact={true} />
           </div>
-
         </main>
       </div>
     </>

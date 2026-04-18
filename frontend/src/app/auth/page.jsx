@@ -1,6 +1,6 @@
 "use client";
 import { useState, Suspense } from "react";
-
+import { signOut } from "firebase/auth";
 import { useRouter, useSearchParams } from "next/navigation";
 import { auth, db } from "@/lib/firebase";
 import { GoogleAuthProvider, signInWithPopup, updateProfile } from "firebase/auth";

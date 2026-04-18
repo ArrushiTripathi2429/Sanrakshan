@@ -1,7 +1,10 @@
 ﻿"use client";
 
 import { useState, useEffect, useRef } from "react";
+
 import { auth, db } from "@/lib/firebase";
+import { signOut } from "firebase/auth";
+import { useRouter } from "next/navigation";
 import { onAuthStateChanged } from "firebase/auth";
 import VILLAGES_DATA from "@/data/villages";
 import {
@@ -84,6 +87,7 @@ const CACHE_KEYS = {
 };
 
 export default function FieldWorkerPage() {
+  const router = useRouter();
   const [mode, setMode] = useState(null);
   const [sidebarView, setSidebarView] = useState("reports"); // reports | new-report | community | alerts
   const [form, setForm] = useState(emptyForm);
@@ -511,6 +515,11 @@ const saveReport = async (data) => {
     }
   };
 
+  const handleLogout = async () => {
+  await signOut(auth);
+  router.push("/");
+};
+
   return (
     <>
       <style>{`
@@ -658,15 +667,37 @@ const saveReport = async (data) => {
           <button className={`fw-nav ${sidebarView==="new-report"?"active":""}`} onClick={()=>{setSidebarView("new-report");setMode(null);}}>⊕ New Report</button>
           <button className={`fw-nav ${sidebarView==="community"?"active":""}`} onClick={()=>{setSidebarView("community");setMode(null);}}>◎ Community Needs</button>
           <button className={`fw-nav ${sidebarView==="alerts"?"active":""}`} onClick={()=>{setSidebarView("alerts");setMode(null);}}>◷ My Requests</button>
-          <div className="fw-sidebar-footer">
-            <div className="fw-user">
-              <div className="fw-avatar">{user?.displayName?.[0] || "F"}</div>
-              <div>
-                <div className="fw-user-name">{user?.displayName || "Field Worker"}</div>
-                <div className="fw-user-role">Field Worker</div>
-              </div>
-            </div>
-          </div>
+
+
+
+
+
+
+
+          
+         <div className="fw-sidebar-footer">
+  <div className="fw-user">
+    <div className="fw-avatar">{user?.displayName?.[0] || "F"}</div>
+    <div>
+      <div className="fw-user-name">{user?.displayName || "Field Worker"}</div>
+      <div className="fw-user-role">Field Worker</div>
+    </div>
+  </div>
+  <button
+    onClick={handleLogout}
+    style={{
+      width: "100%", padding: "8px 12px", marginTop: 8,
+      background: "none", border: "1px solid rgba(255,255,255,0.08)",
+      borderRadius: 8, color: "rgba(232,245,233,0.35)",
+      fontSize: "0.75rem", cursor: "pointer", fontFamily: "sans-serif",
+      textAlign: "left", transition: "all 0.2s",
+    }}
+    onMouseEnter={e => { e.target.style.color="#f87171"; e.target.style.borderColor="rgba(248,113,113,0.25)"; }}
+    onMouseLeave={e => { e.target.style.color="rgba(232,245,233,0.35)"; e.target.style.borderColor="rgba(255,255,255,0.08)"; }}
+  >
+    ↩ Logout
+  </button>
+</div>
         </aside>
 
         {/* MAIN */}

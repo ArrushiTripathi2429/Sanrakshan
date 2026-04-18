@@ -15,6 +15,9 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer
 } from "recharts";
 
+import { signOut } from "firebase/auth";
+import { useRouter } from "next/navigation";
+
 // ── Constants 
 const VOL_COLORS = ["#6366f1","#3b82f6","#8b5cf6","#06b6d4","#ec4899","#f59e0b","#86efac","#f87171"];
 const initials = (name) => name ? name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase() : "?";
@@ -771,6 +774,8 @@ function VillageDrawer({ village, onClose, issues, chronicNeeds }) {
 }
 // ── Main AdminPage
 export default function AdminPage() {
+
+  const router = useRouter();
   const mapRef         = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersRef     = useRef({});
@@ -992,6 +997,12 @@ markersRef.current[v.id] = marker;
     finally { setAssigning(false); }
   };
 
+
+  const handleLogout = async () => {
+  await signOut(auth);
+  router.push("/");
+};
+
   // ── Chronic needs helpers 
   const addChronicNeed = async () => {
     if (!chronicForm.village || !chronicForm.description) return;
@@ -1073,6 +1084,25 @@ markersRef.current[v.id] = marker;
               Nearby Village information
             </a>
             <DownloadReport issues={issues} villages={villages}/>
+
+
+
+
+
+
+            <button
+  onClick={handleLogout}
+  style={{
+    fontSize:"0.72rem", color:"rgba(232,245,233,0.4)", padding:"5px 12px",
+    borderRadius:8, background:"none",
+    border:"1px solid rgba(255,255,255,0.08)", cursor:"pointer",
+    fontFamily:"'Outfit',sans-serif", transition:"all 0.2s",
+  }}
+  onMouseEnter={e => { e.target.style.color="#f87171"; e.target.style.borderColor="rgba(248,113,113,0.25)"; }}
+  onMouseLeave={e => { e.target.style.color="rgba(232,245,233,0.4)"; e.target.style.borderColor="rgba(255,255,255,0.08)"; }}
+>
+  ↩ Logout
+</button>
           </div>
         </header>
 
