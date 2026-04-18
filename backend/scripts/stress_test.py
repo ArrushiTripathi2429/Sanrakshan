@@ -2,7 +2,7 @@
 Basic reliability stress checks for Sanrakshan backend.
 
 Usage:
-  python scripts/stress_test.py --base-url http://localhost:8000 --rss-runs 20 --priority-runs 20
+  python scripts/stress_test.py --base-url ${process.env.NEXT_PUBLIC_BACKEND_URL} --rss-runs 20 --priority-runs 20
 """
 
 import argparse
@@ -82,7 +82,7 @@ async def run_priority(client: httpx.AsyncClient, runs: int):
 
 async def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--base-url", default="http://localhost:8000")
+    parser.add_argument("--base-url", default="${process.env.NEXT_PUBLIC_BACKEND_URL}")
     parser.add_argument("--rss-runs", type=int, default=20)
     parser.add_argument("--priority-runs", type=int, default=20)
     args = parser.parse_args()

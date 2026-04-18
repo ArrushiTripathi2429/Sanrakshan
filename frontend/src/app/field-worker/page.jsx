@@ -358,7 +358,7 @@ const saveReport = async (data) => {
           });
         }
 
-        const res = await fetch("http://localhost:8000/api/analyze/audio", {
+        const res = await fetch("${process.env.NEXT_PUBLIC_BACKEND_URL}/api/analyze/audio", {
           method: "POST",
           body: formData,
         });
@@ -375,7 +375,7 @@ const saveReport = async (data) => {
     } catch (e) {
       console.error("Gemini audio failed, trying text fallback:", e);
       try {
-        const res = await fetch("http://localhost:8000/api/analyze/text", {
+        const res = await fetch("${process.env.NEXT_PUBLIC_BACKEND_URL}/api/analyze/text", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -453,7 +453,7 @@ const saveReport = async (data) => {
     if (!village) return;
     setMatchingNeedId(need.id);
     try {
-      const res = await fetch("http://localhost:8000/api/volunteer-match", {
+      const res = await fetch("${process.env.NEXT_PUBLIC_BACKEND_URL}/api/volunteer-match", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

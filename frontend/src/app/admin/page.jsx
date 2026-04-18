@@ -270,7 +270,7 @@ function WeatherAndAlerts() {
   const [expanded, setExpanded]     = useState(false);
 
   useEffect(() => {
-    fetch("http://localhost:8000/api/weather/raebareli")
+    fetch("${process.env.NEXT_PUBLIC_BACKEND_URL}/api/weather/raebareli")
       .then(r => r.json())
       .then(d => setWeather(d))
       .catch(() => {});
@@ -279,7 +279,7 @@ function WeatherAndAlerts() {
   const scanNews = async () => {
     setScanning(true);
     try {
-      const res  = await fetch("http://localhost:8000/api/early-warning/scan", { method:"POST" });
+      const res  = await fetch("${process.env.NEXT_PUBLIC_BACKEND_URL}/api/early-warning/scan", { method:"POST" });
       const data = await res.json();
       if (data.success) setNewsAlerts(data.alerts || []);
     } catch {}
@@ -861,7 +861,7 @@ export default function AdminPage() {
         const pending = docs.filter(i => !i.assigned && i.status !== "resolved");
         if (pending.length > 0) {
           try {
-            const res = await fetch("http://localhost:8000/api/priority", {
+            const res = await fetch("${process.env.NEXT_PUBLIC_BACKEND_URL}/api/priority", {
               method: "POST",
               headers: { "Content-Type":"application/json" },
               body: JSON.stringify({ reports: pending.map(r => ({ id:r.id, title:r.title, category:r.category, severity:r.severity, affected:r.affected, village:r.village, location:r.location })) }),
@@ -885,7 +885,7 @@ export default function AdminPage() {
         const pendingForDisc = docs.filter(i => !i.assigned && i.status !== "resolved");
         if (pendingForDisc.length > 0) {
           Promise.all(pendingForDisc.map(r =>
-            fetch("http://localhost:8000/api/discrepancy/check", {
+            fetch("${process.env.NEXT_PUBLIC_BACKEND_URL}/api/discrepancy/check", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ report_id: r.id, category: r.category, village: r.village || "", location: r.location || "" }),
