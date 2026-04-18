@@ -1,4 +1,5 @@
 "use client";
+import { auth } from "@/lib/firebase";
 
 import { useEffect, useRef, useState } from "react";
 import { db } from "@/lib/firebase";
