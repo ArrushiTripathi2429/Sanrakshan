@@ -515,10 +515,17 @@ const saveReport = async (data) => {
     }
   };
 
+
+
   const handleLogout = async () => {
+  localStorage.removeItem(CACHE_KEYS.reports);
+  localStorage.removeItem(CACHE_KEYS.communityNeeds);
+  localStorage.removeItem(CACHE_KEYS.needRequests);
   await signOut(auth);
   router.push("/");
 };
+
+  
 
   return (
     <>
