@@ -79,7 +79,14 @@ const statusColor = {
   assigned: "#67e8f9",
   resolved: "#86efac",
 };
-const severityColor = ["", "#86efac", "#a3e635", "#fbbf24", "#fb923c", "#f87171"];
+const severityColor = [
+  "",
+  "#86efac",
+  "#a3e635",
+  "#fbbf24",
+  "#fb923c",
+  "#f87171",
+];
 const CACHE_KEYS = {
   reports: "fw_reports_cache_v1",
   communityNeeds: "fw_community_needs_cache_v1",
@@ -157,7 +164,7 @@ export default function FieldWorkerPage() {
 
     const q = query(
       collection(db, "reports"),
-      where("fieldWorkerId", "==", uid)
+      where("fieldWorkerId", "==", uid),
     );
 
     const unsub = onSnapshot(
@@ -181,7 +188,7 @@ export default function FieldWorkerPage() {
         console.error("Reports sync failed:", error);
         setSyncError("Live sync is slow. Showing cached data.");
         setReportsLoading(false);
-      }
+      },
     );
 
     return () => unsub();
@@ -190,7 +197,10 @@ export default function FieldWorkerPage() {
   // Community needs (long-term)
   useEffect(() => {
     setNeedsLoading(true);
-    const q = query(collection(db, "chronicNeeds"), orderBy("createdAt", "desc"));
+    const q = query(
+      collection(db, "chronicNeeds"),
+      orderBy("createdAt", "desc"),
+    );
     const unsub = onSnapshot(
       q,
       (snap) => {
@@ -209,7 +219,7 @@ export default function FieldWorkerPage() {
         console.error("Community needs sync failed:", error);
         setSyncError("Live sync is slow. Showing cached data.");
         setNeedsLoading(false);
-      }
+      },
     );
     return () => unsub();
   }, []);
@@ -229,14 +239,16 @@ export default function FieldWorkerPage() {
     setRequestsLoading(true);
     const q = query(
       collection(db, "needRequests"),
-      where("fieldWorkerId", "==", user.uid)
+      where("fieldWorkerId", "==", user.uid),
     );
     const unsub = onSnapshot(
       q,
       (snap) => {
         const reqs = snap.docs
           .map((d) => ({ id: d.id, ...d.data() }))
-          .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+          .sort(
+            (a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0),
+          );
         setNeedRequests(reqs);
         setRequestsLoading(false);
         localStorage.setItem(CACHE_KEYS.needRequests, JSON.stringify(reqs));
@@ -245,7 +257,7 @@ export default function FieldWorkerPage() {
         console.error("Need request sync failed:", error);
         setSyncError("Live sync is slow. Showing cached data.");
         setRequestsLoading(false);
-      }
+      },
     );
     return () => unsub();
   }, [user?.uid]);
@@ -267,7 +279,10 @@ export default function FieldWorkerPage() {
     setGpsStatus("detecting");
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const village = nearestVillage(pos.coords.latitude, pos.coords.longitude);
+        const village = nearestVillage(
+          pos.coords.latitude,
+          pos.coords.longitude,
+        );
         if (village) {
           handleFormChange("location", village.name);
           setGpsStatus("found");
@@ -276,39 +291,39 @@ export default function FieldWorkerPage() {
         }
       },
       () => setGpsStatus("error"),
-      { timeout: 6000 }
+      { timeout: 6000 },
     );
   };
 
-  
- // Save report to Firestore
-const saveReport = async (data) => {
-  setSubmitting(true);
-  try {
-    const currentUser = auth.currentUser;
-    await addDoc(collection(db, "reports"), {
-      ...data,
-      status: "pending",
-      fieldWorkerId: currentUser?.uid || null,
-      fieldWorkerName: currentUser?.displayName || "Field Worker",
-      createdAt: serverTimestamp(),
-    });
-    setSubmitted(true);
-    setTimeout(() => {
-      setSubmitted(false);
-      setMode(null);
-      setForm(emptyForm);
-      resetVoice();
-    }, 2000);
-  } catch (e) {
-    console.error("Error saving report:", e);
-  } finally {
-    setSubmitting(false);
-  }
-};
+  // Save report to Firestore
+  const saveReport = async (data) => {
+    setSubmitting(true);
+    try {
+      const currentUser = auth.currentUser;
+      await addDoc(collection(db, "reports"), {
+        ...data,
+        status: "pending",
+        fieldWorkerId: currentUser?.uid || null,
+        fieldWorkerName: currentUser?.displayName || "Field Worker",
+        createdAt: serverTimestamp(),
+      });
+      setSubmitted(true);
+      setTimeout(() => {
+        setSubmitted(false);
+        setMode(null);
+        setForm(emptyForm);
+        resetVoice();
+      }, 2000);
+    } catch (e) {
+      console.error("Error saving report:", e);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   // Recording
   const startRecording = async () => {
+    resetVoice();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mr = new MediaRecorder(stream);
@@ -349,19 +364,26 @@ const saveReport = async (data) => {
 
         // Attach GPS coordinates if available (for location fallback)
         if (navigator.geolocation) {
-          await new Promise(resolve => {
+          await new Promise((resolve) => {
             navigator.geolocation.getCurrentPosition(
-              pos => { formData.append("lat", pos.coords.latitude); formData.append("lng", pos.coords.longitude); resolve(); },
+              (pos) => {
+                formData.append("lat", pos.coords.latitude);
+                formData.append("lng", pos.coords.longitude);
+                resolve();
+              },
               () => resolve(), // GPS unavailable — continue without
-              { timeout: 3000 }
+              { timeout: 3000 },
             );
           });
         }
 
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/analyze/audio`, {
-          method: "POST",
-          body: formData,
-        });
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/analyze/audio`,
+          {
+            method: "POST",
+            body: formData,
+          },
+        );
 
         if (!res.ok) throw new Error(`Backend error: ${res.status}`);
         const json = await res.json();
@@ -373,30 +395,8 @@ const saveReport = async (data) => {
       }
       throw new Error("No audio data");
     } catch (e) {
-      console.error("Gemini audio failed, trying text fallback:", e);
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/analyze/text`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            text: "Voice report submitted from field worker in Raebareli district. Please extract a sample disaster report.",
-          }),
-        });
-        const json = await res.json();
-        if (json.success && json.data) {
-          setParsed(json.data);
-        }
-      } catch (e2) {
-        console.error("Text fallback also failed:", e2);
-        setParsed({
-          title: "Could not process voice",
-          category: "other",
-          location: "",
-          severity: 1,
-          affected: "",
-          description: "Voice processing failed. Please use the form instead.",
-        });
-      }
+      console.error("Audio processing failed:", e);
+      setParsed(null);
     } finally {
       setProcessing(false);
     }
@@ -448,36 +448,42 @@ const saveReport = async (data) => {
 
   const getNeedMatches = async (need) => {
     const village = VILLAGES_DATA.find(
-      (v) => v.name.toLowerCase() === String(need.village || "").toLowerCase()
+      (v) => v.name.toLowerCase() === String(need.village || "").toLowerCase(),
     );
     if (!village) return;
     setMatchingNeedId(need.id);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/volunteer-match`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          report_id: need.id,
-          title: `Chronic need: ${need.category}`,
-          description: need.description,
-          category: need.category || "other",
-          village_lat: village.lat,
-          village_lng: village.lng,
-          volunteers: volunteers.map((v) => ({
-            id: v.uid || v.id,
-            name: v.name || "Volunteer",
-            skills: Array.isArray(v.skills) ? v.skills : [],
-            lat: v.lat ?? null,
-            lng: v.lng ?? null,
-            resolved_tasks: v.resolvedTasks || 0,
-            total_assigned: v.totalAssigned || 0,
-            available: v.available !== false,
-          })),
-        }),
-      });
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/volunteer-match`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            report_id: need.id,
+            title: `Chronic need: ${need.category}`,
+            description: need.description,
+            category: need.category || "other",
+            village_lat: village.lat,
+            village_lng: village.lng,
+            volunteers: volunteers.map((v) => ({
+              id: v.uid || v.id,
+              name: v.name || "Volunteer",
+              skills: Array.isArray(v.skills) ? v.skills : [],
+              lat: v.lat ?? null,
+              lng: v.lng ?? null,
+              resolved_tasks: v.resolvedTasks || 0,
+              total_assigned: v.totalAssigned || 0,
+              available: v.available !== false,
+            })),
+          }),
+        },
+      );
       if (!res.ok) throw new Error(`match failed ${res.status}`);
       const json = await res.json();
-      setNeedMatchesById((prev) => ({ ...prev, [need.id]: json.matches || [] }));
+      setNeedMatchesById((prev) => ({
+        ...prev,
+        [need.id]: json.matches || [],
+      }));
     } catch (e) {
       console.error("Matching failed:", e);
       setNeedMatchesById((prev) => ({ ...prev, [need.id]: [] }));
@@ -515,17 +521,13 @@ const saveReport = async (data) => {
     }
   };
 
-
-
   const handleLogout = async () => {
-  localStorage.removeItem(CACHE_KEYS.reports);
-  localStorage.removeItem(CACHE_KEYS.communityNeeds);
-  localStorage.removeItem(CACHE_KEYS.needRequests);
-  await signOut(auth);
-  router.push("/");
-};
-
-  
+    localStorage.removeItem(CACHE_KEYS.reports);
+    localStorage.removeItem(CACHE_KEYS.communityNeeds);
+    localStorage.removeItem(CACHE_KEYS.needRequests);
+    await signOut(auth);
+    router.push("/");
+  };
 
   return (
     <>
@@ -669,42 +671,84 @@ const saveReport = async (data) => {
       <div className="fw-wrap">
         {/* SIDEBAR */}
         <aside className="fw-sidebar">
-          <div className="fw-logo">Sanrakshan <span>/ Field</span></div>
-          <button className={`fw-nav ${sidebarView==="reports"?"active":""}`} onClick={()=>{setSidebarView("reports");setMode(null);}}>My Reports</button>
-          <button className={`fw-nav ${sidebarView==="new-report"?"active":""}`} onClick={()=>{setSidebarView("new-report");setMode(null);}}>⊕ New Report</button>
-          <button className={`fw-nav ${sidebarView==="community"?"active":""}`} onClick={()=>{setSidebarView("community");setMode(null);}}>◎ Community Needs</button>
-          <button className={`fw-nav ${sidebarView==="alerts"?"active":""}`} onClick={()=>{setSidebarView("alerts");setMode(null);}}>◷ My Requests</button>
+          <div className="fw-logo">
+            Sanrakshan <span>/ Field</span>
+          </div>
+          <button
+            className={`fw-nav ${sidebarView === "reports" ? "active" : ""}`}
+            onClick={() => {
+              setSidebarView("reports");
+              setMode(null);
+            }}
+          >
+            My Reports
+          </button>
+          <button
+            className={`fw-nav ${sidebarView === "new-report" ? "active" : ""}`}
+            onClick={() => {
+              setSidebarView("new-report");
+              setMode(null);
+            }}
+          >
+            ⊕ New Report
+          </button>
+          <button
+            className={`fw-nav ${sidebarView === "community" ? "active" : ""}`}
+            onClick={() => {
+              setSidebarView("community");
+              setMode(null);
+            }}
+          >
+            ◎ Community Needs
+          </button>
+          <button
+            className={`fw-nav ${sidebarView === "alerts" ? "active" : ""}`}
+            onClick={() => {
+              setSidebarView("alerts");
+              setMode(null);
+            }}
+          >
+            ◷ My Requests
+          </button>
 
-
-
-
-
-
-
-          
-         <div className="fw-sidebar-footer">
-  <div className="fw-user">
-    <div className="fw-avatar">{user?.displayName?.[0] || "F"}</div>
-    <div>
-      <div className="fw-user-name">{user?.displayName || "Field Worker"}</div>
-      <div className="fw-user-role">Field Worker</div>
-    </div>
-  </div>
-  <button
-    onClick={handleLogout}
-    style={{
-      width: "100%", padding: "8px 12px", marginTop: 8,
-      background: "none", border: "1px solid rgba(255,255,255,0.08)",
-      borderRadius: 8, color: "rgba(232,245,233,0.35)",
-      fontSize: "0.75rem", cursor: "pointer", fontFamily: "sans-serif",
-      textAlign: "left", transition: "all 0.2s",
-    }}
-    onMouseEnter={e => { e.target.style.color="#f87171"; e.target.style.borderColor="rgba(248,113,113,0.25)"; }}
-    onMouseLeave={e => { e.target.style.color="rgba(232,245,233,0.35)"; e.target.style.borderColor="rgba(255,255,255,0.08)"; }}
-  >
-    ↩ Logout
-  </button>
-</div>
+          <div className="fw-sidebar-footer">
+            <div className="fw-user">
+              <div className="fw-avatar">{user?.displayName?.[0] || "F"}</div>
+              <div>
+                <div className="fw-user-name">
+                  {user?.displayName || "Field Worker"}
+                </div>
+                <div className="fw-user-role">Field Worker</div>
+              </div>
+            </div>
+            <button
+              onClick={handleLogout}
+              style={{
+                width: "100%",
+                padding: "8px 12px",
+                marginTop: 8,
+                background: "none",
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: 8,
+                color: "rgba(232,245,233,0.35)",
+                fontSize: "0.75rem",
+                cursor: "pointer",
+                fontFamily: "sans-serif",
+                textAlign: "left",
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.color = "#f87171";
+                e.target.style.borderColor = "rgba(248,113,113,0.25)";
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.color = "rgba(232,245,233,0.35)";
+                e.target.style.borderColor = "rgba(255,255,255,0.08)";
+              }}
+            >
+              ↩ Logout
+            </button>
+          </div>
         </aside>
 
         {/* MAIN */}
@@ -712,51 +756,78 @@ const saveReport = async (data) => {
           <div className="fw-header">
             <div className="fw-greeting">Field Worker Dashboard</div>
             <div className="fw-title">
-              {sidebarView==="new-report" ? "New Report" :
-               sidebarView==="community" ? "Community Needs" :
-               sidebarView==="alerts" ? "My Requests" :
-               "My Reports"}
+              {sidebarView === "new-report"
+                ? "New Report"
+                : sidebarView === "community"
+                  ? "Community Needs"
+                  : sidebarView === "alerts"
+                    ? "My Requests"
+                    : "My Reports"}
             </div>
           </div>
           {syncError && (
-            <div style={{ marginBottom: 12, fontSize: "0.75rem", color: "#fbbf24" }}>
+            <div
+              style={{
+                marginBottom: 12,
+                fontSize: "0.75rem",
+                color: "#fbbf24",
+              }}
+            >
               {syncError}
             </div>
           )}
-
           {/* MODE PICKER — show on new-report or reports view */}
-          {(sidebarView==="new-report"||sidebarView==="reports") && (
-          <div className="fw-mode-pick">
-            <div
-              className={`fw-mode-card voice-card ${mode === "voice" ? "active-voice" : ""}`}
-              onClick={() => { setMode("voice"); resetVoice(); detectLocation(); }}
-            >
-              <span className="fw-mode-icon">🎙️</span>
-              <div className="fw-mode-title">Voice Report</div>
-              <div className="fw-mode-desc">बोलिए, हम सुन रहे हैं – Record in Hindi or English. AI extracts all details automatically.</div>
+          {(sidebarView === "new-report" || sidebarView === "reports") && (
+            <div className="fw-mode-pick">
+              <div
+                className={`fw-mode-card voice-card ${mode === "voice" ? "active-voice" : ""}`}
+                onClick={() => {
+                  setMode("voice");
+                  resetVoice();
+                  detectLocation();
+                }}
+              >
+                <span className="fw-mode-icon">🎙️</span>
+                <div className="fw-mode-title">Voice Report</div>
+                <div className="fw-mode-desc">
+                  बोलिए, हम सुन रहे हैं – Record in Hindi or English. AI
+                  extracts all details automatically.
+                </div>
+              </div>
+              <div
+                className={`fw-mode-card form-card ${mode === "form" ? "active-form" : ""}`}
+                onClick={() => {
+                  setMode("form");
+                  setForm(emptyForm);
+                  detectLocation();
+                }}
+              >
+                <span className="fw-mode-icon">📝</span>
+                <div className="fw-mode-title">Fill a Form</div>
+                <div className="fw-mode-desc">
+                  For literate users – describe the issue in detail with
+                  category, location and photos.
+                </div>
+              </div>
             </div>
-            <div
-              className={`fw-mode-card form-card ${mode === "form" ? "active-form" : ""}`}
-              onClick={() => { setMode("form"); setForm(emptyForm); detectLocation(); }}
-            >
-              <span className="fw-mode-icon">📝</span>
-              <div className="fw-mode-title">Fill a Form</div>
-              <div className="fw-mode-desc">For literate users – describe the issue in detail with category, location and photos.</div>
-            </div>
-          </div>
-          )} {/* end mode picker conditional */}
-
+          )}{" "}
+          {/* end mode picker conditional */}
           {/* VOICE PANEL */}
           {mode === "voice" && (
             <div className="fw-panel">
               <div className="fw-panel-title">Voice Report</div>
-              <div className="fw-panel-sub">Hold the mic button and describe the issue clearly in your language.</div>
+              <div className="fw-panel-sub">
+                Hold the mic button and describe the issue clearly in your
+                language.
+              </div>
 
               {submitted ? (
                 <div className="fw-success">
                   <div className="fw-success-icon">✅</div>
                   <div className="fw-success-text">Report Submitted!</div>
-                  <div className="fw-success-sub">Admin has been notified. Map updated.</div>
+                  <div className="fw-success-sub">
+                    Admin has been notified. Map updated.
+                  </div>
                 </div>
               ) : !processing && !parsed ? (
                 <div className="fw-voice-center">
@@ -780,70 +851,127 @@ const saveReport = async (data) => {
                   </div>
                   {recording && <div className="fw-timer">{fmt(seconds)}</div>}
                   <div className="fw-mic-hint">
-                    {recording ? "Release to stop recording..." : "Hold the button and speak"}
+                    {recording
+                      ? "Release to stop recording..."
+                      : "Hold the button and speak"}
                   </div>
                 </div>
               ) : processing ? (
                 <div className="fw-voice-center">
                   <div className="fw-spinner" />
-                  <div className="fw-proc-text">Gemini is processing your voice...</div>
-                  <div className="fw-proc-sub">Extracting location, issue type &amp; severity</div>
+                  <div className="fw-proc-text">
+                    Gemini is processing your voice...
+                  </div>
+                  <div className="fw-proc-sub">
+                    Extracting location, issue type &amp; severity
+                  </div>
                 </div>
-              ) : parsed && (
-                <div className="fw-parsed">
-                  <div className="fw-parsed-head">
-                    <div className="fw-parsed-badge">Auto-extracted from voice</div>
-                    <button className="fw-retry" onClick={resetVoice}>↺ Re-record</button>
+              ) : !parsed && recorded ? (
+                <div className="fw-voice-center">
+                  <div
+                    style={{
+                      color: "#f87171",
+                      fontSize: "0.85rem",
+                      textAlign: "center",
+                    }}
+                  >
+                    Could not process voice. Please re-record or use the form.
                   </div>
-                  <div className="fw-pgrid">
-                    <div className="fw-pfield">
-                      <div className="fw-plabel">Issue Title</div>
-                      <div className="fw-pvalue">{parsed.title}</div>
-                    </div>
-                    <div className="fw-pfield">
-                      <div className="fw-plabel">Location</div>
-                      <div className="fw-pvalue">{parsed.location}</div>
-                    </div>
-                    <div className="fw-pfield">
-                      <div className="fw-plabel">Category</div>
-                      <div className="fw-pvalue">{CATEGORIES.find((c) => c.value === parsed.category)?.label || parsed.category}</div>
-                    </div>
-                    <div className="fw-pfield">
-                      <div className="fw-plabel">People Affected</div>
-                      <div className="fw-pvalue">~{parsed.affected}</div>
-                    </div>
-                    <div className="fw-pfield">
-                      <div className="fw-plabel">Severity</div>
-                      <div className="fw-dots">
-                        {[1, 2, 3, 4, 5].map((n) => (
-                          <div key={n} className={`fw-dot ${n <= parsed.severity ? "on" : ""}`} />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="fw-pfield" style={{ marginBottom: "20px" }}>
-                    <div className="fw-plabel" style={{ marginBottom: "5px" }}>Description</div>
-                    <div style={{ fontSize: "0.82rem", color: "rgba(232,245,233,0.5)", lineHeight: 1.6 }}>{parsed.description}</div>
-                  </div>
-                  <button className="fw-submit" onClick={handleSubmitVoice} disabled={submitting}>
-                    {submitting ? "Saving..." : "Submit Report →"}
+                  <button
+                    className="fw-retry"
+                    onClick={resetVoice}
+                    style={{ marginTop: 8 }}
+                  >
+                    ↺ Try Again
                   </button>
                 </div>
+              ) : (
+                parsed && (
+                  <div className="fw-parsed">
+                    <div className="fw-parsed-head">
+                      <div className="fw-parsed-badge">
+                        Auto-extracted from voice
+                      </div>
+                      <button className="fw-retry" onClick={resetVoice}>
+                        ↺ Re-record
+                      </button>
+                    </div>
+                    <div className="fw-pgrid">
+                      <div className="fw-pfield">
+                        <div className="fw-plabel">Issue Title</div>
+                        <div className="fw-pvalue">{parsed.title}</div>
+                      </div>
+                      <div className="fw-pfield">
+                        <div className="fw-plabel">Location</div>
+                        <div className="fw-pvalue">{parsed.location}</div>
+                      </div>
+                      <div className="fw-pfield">
+                        <div className="fw-plabel">Category</div>
+                        <div className="fw-pvalue">
+                          {CATEGORIES.find((c) => c.value === parsed.category)
+                            ?.label || parsed.category}
+                        </div>
+                      </div>
+                      <div className="fw-pfield">
+                        <div className="fw-plabel">People Affected</div>
+                        <div className="fw-pvalue">~{parsed.affected}</div>
+                      </div>
+                      <div className="fw-pfield">
+                        <div className="fw-plabel">Severity</div>
+                        <div className="fw-dots">
+                          {[1, 2, 3, 4, 5].map((n) => (
+                            <div
+                              key={n}
+                              className={`fw-dot ${n <= parsed.severity ? "on" : ""}`}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="fw-pfield" style={{ marginBottom: "20px" }}>
+                      <div
+                        className="fw-plabel"
+                        style={{ marginBottom: "5px" }}
+                      >
+                        Description
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "0.82rem",
+                          color: "rgba(232,245,233,0.5)",
+                          lineHeight: 1.6,
+                        }}
+                      >
+                        {parsed.description}
+                      </div>
+                    </div>
+                    <button
+                      className="fw-submit"
+                      onClick={handleSubmitVoice}
+                      disabled={submitting}
+                    >
+                      {submitting ? "Saving..." : "Submit Report →"}
+                    </button>
+                  </div>
+                )
               )}
             </div>
           )}
-
           {/* FORM PANEL */}
           {mode === "form" && (
             <div className="fw-panel">
               <div className="fw-panel-title">Detailed Report Form</div>
-              <div className="fw-panel-sub">Fill in the details carefully. All fields marked are important.</div>
+              <div className="fw-panel-sub">
+                Fill in the details carefully. All fields marked are important.
+              </div>
 
               {submitted ? (
                 <div className="fw-success">
                   <div className="fw-success-icon">✅</div>
                   <div className="fw-success-text">Report Submitted!</div>
-                  <div className="fw-success-sub">Admin has been notified. Map updated.</div>
+                  <div className="fw-success-sub">
+                    Admin has been notified. Map updated.
+                  </div>
                 </div>
               ) : (
                 <div className="fw-form">
@@ -852,11 +980,15 @@ const saveReport = async (data) => {
                     <select
                       className="fw-select"
                       value={form.category}
-                      onChange={(e) => handleFormChange("category", e.target.value)}
+                      onChange={(e) =>
+                        handleFormChange("category", e.target.value)
+                      }
                     >
                       <option value="">Select a category...</option>
                       {CATEGORIES.map((c) => (
-                        <option key={c.value} value={c.value}>{c.label}</option>
+                        <option key={c.value} value={c.value}>
+                          {c.label}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -869,7 +1001,9 @@ const saveReport = async (data) => {
                           className="fw-input"
                           placeholder="e.g. Dalmau Block, Raebareli"
                           value={form.location}
-                          onChange={(e) => handleFormChange("location", e.target.value)}
+                          onChange={(e) =>
+                            handleFormChange("location", e.target.value)
+                          }
                           style={{ paddingRight: 90 }}
                         />
                         <button
@@ -882,12 +1016,24 @@ const saveReport = async (data) => {
                         </button>
                       </div>
                       {gpsStatus === "found" && (
-                        <div style={{ fontSize: "0.68rem", color: "#86efac", marginTop: 4 }}>
+                        <div
+                          style={{
+                            fontSize: "0.68rem",
+                            color: "#86efac",
+                            marginTop: 4,
+                          }}
+                        >
                           ✓ Nearest village auto-detected
                         </div>
                       )}
                       {gpsStatus === "error" && (
-                        <div style={{ fontSize: "0.68rem", color: "#f87171", marginTop: 4 }}>
+                        <div
+                          style={{
+                            fontSize: "0.68rem",
+                            color: "#f87171",
+                            marginTop: 4,
+                          }}
+                        >
                           GPS unavailable – please type location
                         </div>
                       )}
@@ -900,7 +1046,9 @@ const saveReport = async (data) => {
                         type="number"
                         placeholder="Approx. count"
                         value={form.affected}
-                        onChange={(e) => handleFormChange("affected", e.target.value)}
+                        onChange={(e) =>
+                          handleFormChange("affected", e.target.value)
+                        }
                       />
                     </div>
                   </div>
@@ -912,7 +1060,11 @@ const saveReport = async (data) => {
                         <button
                           key={n}
                           className={`fw-sev-btn ${form.severity === n ? "sel" : ""}`}
-                          style={form.severity === n ? { background: severityColor[n] } : {}}
+                          style={
+                            form.severity === n
+                              ? { background: severityColor[n] }
+                              : {}
+                          }
                           onClick={() => handleFormChange("severity", n)}
                           type="button"
                         >
@@ -928,7 +1080,9 @@ const saveReport = async (data) => {
                       className="fw-textarea"
                       placeholder="Describe the issue in detail..."
                       value={form.description}
-                      onChange={(e) => handleFormChange("description", e.target.value)}
+                      onChange={(e) =>
+                        handleFormChange("description", e.target.value)
+                      }
                     />
                   </div>
 
@@ -937,14 +1091,23 @@ const saveReport = async (data) => {
                     <label className="fw-photo-label">
                       <span>📷</span>
                       <span>{form.photo || "Click to upload a photo"}</span>
-                      <input type="file" accept="image/*" onChange={handlePhotoChange} />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handlePhotoChange}
+                      />
                     </label>
                   </div>
 
                   <button
                     className="fw-submit fw-submit-cyan"
                     onClick={handleSubmitForm}
-                    disabled={!form.category || !form.location || !form.description || submitting}
+                    disabled={
+                      !form.category ||
+                      !form.location ||
+                      !form.description ||
+                      submitting
+                    }
                   >
                     {submitting ? "Saving..." : "Submit Report →"}
                   </button>
@@ -952,199 +1115,274 @@ const saveReport = async (data) => {
               )}
             </div>
           )}
-
           {/* COMMUNITY NEEDS PANEL */}
-          {sidebarView==="community" && (
-          <div className="fw-panel">
-            <div className="fw-panel-title">Community Needs Registry</div>
-            <div className="fw-panel-sub">Track long-term needs and coordinate volunteers in real time.</div>
-
-            <div className="fw-form-grid" style={{ marginBottom: 12 }}>
-              <div className="fw-field-group">
-                <label className="fw-label">Need Category</label>
-                <select
-                  className="fw-select"
-                  value={needForm.category}
-                  onChange={(e) => setNeedForm((p) => ({ ...p, category: e.target.value }))}
-                >
-                  {NEED_CATEGORIES.map((c) => (
-                    <option key={c.value} value={c.value}>{c.label}</option>
-                  ))}
-                </select>
+          {sidebarView === "community" && (
+            <div className="fw-panel">
+              <div className="fw-panel-title">Community Needs Registry</div>
+              <div className="fw-panel-sub">
+                Track long-term needs and coordinate volunteers in real time.
               </div>
-              <div className="fw-field-group">
-                <label className="fw-label">Village</label>
-                <input
-                  className="fw-input"
-                  placeholder="Village name"
-                  value={needForm.village}
-                  onChange={(e) => setNeedForm((p) => ({ ...p, village: e.target.value }))}
+
+              <div className="fw-form-grid" style={{ marginBottom: 12 }}>
+                <div className="fw-field-group">
+                  <label className="fw-label">Need Category</label>
+                  <select
+                    className="fw-select"
+                    value={needForm.category}
+                    onChange={(e) =>
+                      setNeedForm((p) => ({ ...p, category: e.target.value }))
+                    }
+                  >
+                    {NEED_CATEGORIES.map((c) => (
+                      <option key={c.value} value={c.value}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="fw-field-group">
+                  <label className="fw-label">Village</label>
+                  <input
+                    className="fw-input"
+                    placeholder="Village name"
+                    value={needForm.village}
+                    onChange={(e) =>
+                      setNeedForm((p) => ({ ...p, village: e.target.value }))
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="fw-field-group" style={{ marginBottom: 16 }}>
+                <label className="fw-label">Need Description</label>
+                <textarea
+                  className="fw-textarea"
+                  placeholder="Describe the chronic need"
+                  value={needForm.description}
+                  onChange={(e) =>
+                    setNeedForm((p) => ({ ...p, description: e.target.value }))
+                  }
                 />
               </div>
-            </div>
 
-            <div className="fw-field-group" style={{ marginBottom: 16 }}>
-              <label className="fw-label">Need Description</label>
-              <textarea
-                className="fw-textarea"
-                placeholder="Describe the chronic need"
-                value={needForm.description}
-                onChange={(e) => setNeedForm((p) => ({ ...p, description: e.target.value }))}
-              />
-            </div>
+              <button
+                className="fw-submit"
+                style={{ marginBottom: 20 }}
+                onClick={createCommunityNeed}
+                disabled={!needForm.village || !needForm.description}
+              >
+                Add Community Need
+              </button>
 
-            <button
-              className="fw-submit"
-              style={{ marginBottom: 20 }}
-              onClick={createCommunityNeed}
-              disabled={!needForm.village || !needForm.description}
-            >
-              Add Community Need
-            </button>
-
-            <div className="fw-sec-head">
-              <div className="fw-sec-title">Open Needs</div>
-            </div>
-            {needsLoading ? (
-              <div className="fw-empty">
-                <div className="fw-empty-text">Syncing open needs...</div>
+              <div className="fw-sec-head">
+                <div className="fw-sec-title">Open Needs</div>
               </div>
-            ) : communityNeeds.filter((n) => n.status !== "resolved").length === 0 ? (
-              <div className="fw-empty">
-                <div className="fw-empty-text">No community needs yet.</div>
-              </div>
-            ) : (
-              communityNeeds
-                .filter((n) => n.status !== "resolved")
-                .slice(0, 6)
-                .map((need) => (
-                  <div key={need.id} className="fw-report-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 10 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                      <div>
-                        <div className="fw-rr-title">{need.category} · {need.village}</div>
-                        <div className="fw-rr-loc">{need.description}</div>
-                      </div>
-                      <div style={{ fontSize: "0.7rem", color: "rgba(232,245,233,0.3)" }}>{need.createdLabel}</div>
-                    </div>
-
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                      <button
-                        className="fw-retry"
-                        onClick={() => getNeedMatches(need)}
-                        disabled={matchingNeedId === need.id}
+              {needsLoading ? (
+                <div className="fw-empty">
+                  <div className="fw-empty-text">Syncing open needs...</div>
+                </div>
+              ) : communityNeeds.filter((n) => n.status !== "resolved")
+                  .length === 0 ? (
+                <div className="fw-empty">
+                  <div className="fw-empty-text">No community needs yet.</div>
+                </div>
+              ) : (
+                communityNeeds
+                  .filter((n) => n.status !== "resolved")
+                  .slice(0, 6)
+                  .map((need) => (
+                    <div
+                      key={need.id}
+                      className="fw-report-row"
+                      style={{
+                        flexDirection: "column",
+                        alignItems: "stretch",
+                        gap: 10,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: 12,
+                        }}
                       >
-                        {matchingNeedId === need.id ? "Matching..." : "Get Volunteer Matches"}
-                      </button>
-                    </div>
-
-                    {(needMatchesById[need.id] || []).length > 0 && (
-                      <div style={{ display: "grid", gap: 8 }}>
-                        {needMatchesById[need.id].map((m) => {
-                          const reqKey = `${need.id}:${m.volunteer_id}`;
-                          return (
-                            <div key={m.volunteer_id} style={{ border: "1px solid rgba(255,255,255,0.08)", borderRadius: 10, padding: "8px 10px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
-                              <div style={{ fontSize: "0.78rem", color: "#f0fdf4" }}>
-                                {m.volunteer_name} · Score {m.composite_score}
-                                {m.recommended ? " · Recommended" : ""}
-                              </div>
-                              <button
-                                className="fw-retry"
-                                onClick={() => sendNeedRequest(need, m)}
-                                disabled={sendingRequestId === reqKey}
-                              >
-                                {sendingRequestId === reqKey ? "Sending..." : "Send Request"}
-                              </button>
-                            </div>
-                          );
-                        })}
+                        <div>
+                          <div className="fw-rr-title">
+                            {need.category} · {need.village}
+                          </div>
+                          <div className="fw-rr-loc">{need.description}</div>
+                        </div>
+                        <div
+                          style={{
+                            fontSize: "0.7rem",
+                            color: "rgba(232,245,233,0.3)",
+                          }}
+                        >
+                          {need.createdLabel}
+                        </div>
                       </div>
-                    )}
-                  </div>
-                ))
-            )}
 
-            <div className="fw-sec-head" style={{ marginTop: 20 }}>
-              <div className="fw-sec-title">My Request Updates</div>
-            </div>
-            {requestsLoading ? (
-              <div className="fw-empty">
-                <div className="fw-empty-text">Syncing request updates...</div>
-              </div>
-            ) : needRequests.length === 0 ? (
-              <div className="fw-empty">
-                <div className="fw-empty-text">No outgoing requests yet.</div>
-              </div>
-            ) : (
-              needRequests.slice(0, 8).map((r) => (
-                <div key={r.id} className="fw-report-row">
-                  <div>
-                    <div className="fw-rr-title">{r.needCategory} · {r.village}</div>
-                    <div className="fw-rr-loc">Volunteer: {r.volunteerName || "—"}</div>
-                  </div>
-                  <span
-                    className="fw-badge"
-                    style={{
-                      color: r.status === "accepted" ? "#86efac" : r.status === "declined" ? "#f87171" : "#fbbf24",
-                      border: "1px solid rgba(255,255,255,0.15)",
-                      background: "rgba(255,255,255,0.04)",
-                    }}
-                  >
-                    {r.status}
-                  </span>
-                </div>
-              ))
-            )}
-          </div>
-          )} {/* end community needs conditional */}
+                      <div
+                        style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
+                      >
+                        <button
+                          className="fw-retry"
+                          onClick={() => getNeedMatches(need)}
+                          disabled={matchingNeedId === need.id}
+                        >
+                          {matchingNeedId === need.id
+                            ? "Matching..."
+                            : "Get Volunteer Matches"}
+                        </button>
+                      </div>
 
-          {/* RECENT REPORTS */}
-          {sidebarView==="reports" && (
-          <div className="fw-reports">
-            <div className="fw-sec-head">
-              <div className="fw-sec-title">My Recent Reports</div>
-            </div>
-            {reportsLoading ? (
-              <div className="fw-empty">
-                <div className="fw-empty-text">Syncing recent reports...</div>
-              </div>
-            ) : reports.length === 0 ? (
-              <div className="fw-empty">
-                <div className="fw-empty-icon">📋</div>
-                <div className="fw-empty-text">
-                  No reports submitted yet.<br />Use voice or form above to report an issue.
-                </div>
-              </div>
-            ) : (
-              reports.map((r) => (
-                <div key={r.id} className="fw-report-row">
-                  <div className="fw-rr-left">
-                    <div className="fw-rr-dot" style={{ background: severityColor[r.severity] || "#86efac" }} />
-                    <div>
-                      <div className="fw-rr-title">{r.title || r.description?.slice(0, 40) + "..."}</div>
-                      <div className="fw-rr-loc">📍 {r.location}</div>
+                      {(needMatchesById[need.id] || []).length > 0 && (
+                        <div style={{ display: "grid", gap: 8 }}>
+                          {needMatchesById[need.id].map((m) => {
+                            const reqKey = `${need.id}:${m.volunteer_id}`;
+                            return (
+                              <div
+                                key={m.volunteer_id}
+                                style={{
+                                  border: "1px solid rgba(255,255,255,0.08)",
+                                  borderRadius: 10,
+                                  padding: "8px 10px",
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "center",
+                                  gap: 10,
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    fontSize: "0.78rem",
+                                    color: "#f0fdf4",
+                                  }}
+                                >
+                                  {m.volunteer_name} · Score {m.composite_score}
+                                  {m.recommended ? " · Recommended" : ""}
+                                </div>
+                                <button
+                                  className="fw-retry"
+                                  onClick={() => sendNeedRequest(need, m)}
+                                  disabled={sendingRequestId === reqKey}
+                                >
+                                  {sendingRequestId === reqKey
+                                    ? "Sending..."
+                                    : "Send Request"}
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
+                  ))
+              )}
+
+              <div className="fw-sec-head" style={{ marginTop: 20 }}>
+                <div className="fw-sec-title">My Request Updates</div>
+              </div>
+              {requestsLoading ? (
+                <div className="fw-empty">
+                  <div className="fw-empty-text">
+                    Syncing request updates...
                   </div>
-                  <div className="fw-rr-right">
+                </div>
+              ) : needRequests.length === 0 ? (
+                <div className="fw-empty">
+                  <div className="fw-empty-text">No outgoing requests yet.</div>
+                </div>
+              ) : (
+                needRequests.slice(0, 8).map((r) => (
+                  <div key={r.id} className="fw-report-row">
+                    <div>
+                      <div className="fw-rr-title">
+                        {r.needCategory} · {r.village}
+                      </div>
+                      <div className="fw-rr-loc">
+                        Volunteer: {r.volunteerName || "—"}
+                      </div>
+                    </div>
                     <span
                       className="fw-badge"
                       style={{
-                        color: statusColor[r.status],
-                        border: `1px solid ${statusColor[r.status]}40`,
-                        background: `${statusColor[r.status]}10`,
+                        color:
+                          r.status === "accepted"
+                            ? "#86efac"
+                            : r.status === "declined"
+                              ? "#f87171"
+                              : "#fbbf24",
+                        border: "1px solid rgba(255,255,255,0.15)",
+                        background: "rgba(255,255,255,0.04)",
                       }}
                     >
                       {r.status}
                     </span>
-                    <span className="fw-rr-time">{r.time}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          )}{" "}
+          {/* end community needs conditional */}
+          {/* RECENT REPORTS */}
+          {sidebarView === "reports" && (
+            <div className="fw-reports">
+              <div className="fw-sec-head">
+                <div className="fw-sec-title">My Recent Reports</div>
+              </div>
+              {reportsLoading ? (
+                <div className="fw-empty">
+                  <div className="fw-empty-text">Syncing recent reports...</div>
+                </div>
+              ) : reports.length === 0 ? (
+                <div className="fw-empty">
+                  <div className="fw-empty-icon">📋</div>
+                  <div className="fw-empty-text">
+                    No reports submitted yet.
+                    <br />
+                    Use voice or form above to report an issue.
                   </div>
                 </div>
-              ))
-            )}
-          </div>
-          )} {/* end recent reports conditional */}
-
+              ) : (
+                reports.map((r) => (
+                  <div key={r.id} className="fw-report-row">
+                    <div className="fw-rr-left">
+                      <div
+                        className="fw-rr-dot"
+                        style={{
+                          background: severityColor[r.severity] || "#86efac",
+                        }}
+                      />
+                      <div>
+                        <div className="fw-rr-title">
+                          {r.title || r.description?.slice(0, 40) + "..."}
+                        </div>
+                        <div className="fw-rr-loc">📍 {r.location}</div>
+                      </div>
+                    </div>
+                    <div className="fw-rr-right">
+                      <span
+                        className="fw-badge"
+                        style={{
+                          color: statusColor[r.status],
+                          border: `1px solid ${statusColor[r.status]}40`,
+                          background: `${statusColor[r.status]}10`,
+                        }}
+                      >
+                        {r.status}
+                      </span>
+                      <span className="fw-rr-time">{r.time}</span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}{" "}
+          {/* end recent reports conditional */}
           {/* MY REQUESTS VIEW */}
-          {sidebarView==="alerts" && (
+          {sidebarView === "alerts" && (
             <div className="fw-reports">
               <div className="fw-sec-head">
                 <div className="fw-sec-title">My Volunteer Requests</div>
@@ -1152,27 +1390,58 @@ const saveReport = async (data) => {
               {needRequests.length === 0 ? (
                 <div className="fw-empty">
                   <div className="fw-empty-icon">📬</div>
-                  <div className="fw-empty-text">No outgoing requests yet.<br/>Use Community Needs to find and request volunteers.</div>
+                  <div className="fw-empty-text">
+                    No outgoing requests yet.
+                    <br />
+                    Use Community Needs to find and request volunteers.
+                  </div>
                 </div>
-              ) : needRequests.map(r => (
-                <div key={r.id} className="fw-report-row">
-                  <div className="fw-rr-left">
-                    <div className="fw-rr-dot" style={{ background: r.status==="accepted"?"#86efac":r.status==="declined"?"#f87171":"#fbbf24" }} />
-                    <div>
-                      <div className="fw-rr-title">{r.needCategory} · {r.village}</div>
-                      <div className="fw-rr-loc">Volunteer: {r.volunteerName || "—"}</div>
+              ) : (
+                needRequests.map((r) => (
+                  <div key={r.id} className="fw-report-row">
+                    <div className="fw-rr-left">
+                      <div
+                        className="fw-rr-dot"
+                        style={{
+                          background:
+                            r.status === "accepted"
+                              ? "#86efac"
+                              : r.status === "declined"
+                                ? "#f87171"
+                                : "#fbbf24",
+                        }}
+                      />
+                      <div>
+                        <div className="fw-rr-title">
+                          {r.needCategory} · {r.village}
+                        </div>
+                        <div className="fw-rr-loc">
+                          Volunteer: {r.volunteerName || "—"}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="fw-rr-right">
+                      <span
+                        className="fw-badge"
+                        style={{
+                          color:
+                            r.status === "accepted"
+                              ? "#86efac"
+                              : r.status === "declined"
+                                ? "#f87171"
+                                : "#fbbf24",
+                          border: "1px solid rgba(255,255,255,0.1)",
+                          background: "rgba(255,255,255,0.04)",
+                        }}
+                      >
+                        {r.status}
+                      </span>
                     </div>
                   </div>
-                  <div className="fw-rr-right">
-                    <span className="fw-badge" style={{ color: r.status==="accepted"?"#86efac":r.status==="declined"?"#f87171":"#fbbf24", border:"1px solid rgba(255,255,255,0.1)", background:"rgba(255,255,255,0.04)" }}>
-                      {r.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           )}
-
         </main>
       </div>
     </>
