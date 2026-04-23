@@ -151,54 +151,5 @@ Firebase project
 Gemini API key
 Groq API key
 
-Frontend
-bashgit clone https://github.com/yourusername/sanrakshan
-cd sanrakshan
-npm install
-cp .env.example .env.local
-# Fill in your Firebase + backend URL
-npm run dev
-Backend
-bashcd backend
-pip install -r requirements.txt
-cp .env.example .env
-# Fill in GEMINI_API_KEY, GROQ_API_KEY
-uvicorn main:app --reload
-Environment Variables
-Frontend (.env.local)
-NEXT_PUBLIC_FIREBASE_API_KEY=
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=
-NEXT_PUBLIC_BACKEND_URL=
-Backend (.env)
-GEMINI_API_KEY=
-GROQ_API_KEY=
-
- Project Structure
-sanrakshan/
-├── app/
-│   ├── page.js              # Auth + role routing
-│   ├── admin/               # Admin dashboard
-│   ├── field-worker/        # Field worker dashboard
-│   └── volunteer/           # Volunteer dashboard
-├── data/
-│   └── villages.js          # 56 Raebareli village coordinates
-├── lib/
-│   └── firebase.js          # Firestore + Auth config
-└── backend/
-    ├── main.py
-    ├── routes/
-    │   ├── audio.py          # Groq Whisper + Gemini extraction
-    │   ├── priority.py       # AI priority scoring
-    │   └── volunteer_match.py
-    └── lib/
-        ├── gemini.py         # Groq → Gemini fallback AI layer
-        └── pii.py            # DPDP Act 2023 PII redaction
-Privacy & Compliance
-Sanrakshan implements DPDP Act 2023 (India's Digital Personal Data Protection Act) compliance:
-
-PII redaction on all AI-processed reports
-Role-scoped Firestore security rules
-No sensitive personal data stored in reports
 
 
