@@ -44,7 +44,7 @@ Volunteers toggle Available/Busy. Admin sees the status update live on the volun
 
  Architecture
 ┌─────────────────────────────────────────────────────────┐
-│                     FRONTEND (Vercel)                    │
+│                     FRONTEND (Netlify)                    │
 │              Next.js · Firebase Auth · Leaflet           │
 │         Field Worker │ Admin │ Volunteer Dashboards      │
 └──────────────┬───────────────────────────┬──────────────┘
